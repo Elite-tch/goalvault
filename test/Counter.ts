@@ -11,8 +11,7 @@ describe("Counter", async function () {
     const counter = await viem.deployContract("contracts/Counter.sol:Counter");
 
     await viem.assertions.emitWithArgs(
-      // fixed: removed the undefined variable "m"
-      await counter.write.inc(),
+      counter.write.inc().then(hash => publicClient.waitForTransactionReceipt({ hash })),
       counter,
       "Increment",
       [1n],

@@ -23,6 +23,12 @@ export default function Navbar() {
                             Dashboard
                         </Link>
                         <Link
+                            href="/create"
+                            className="text-sm font-medium text-zinc-400 transition-colors hover:text-primary"
+                        >
+                            Create
+                        </Link>
+                        <Link
                             href="/explore"
                             className="text-sm font-medium text-zinc-400 transition-colors hover:text-primary"
                         >

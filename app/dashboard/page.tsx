@@ -1,165 +1,299 @@
 "use client";
 
+import { useAccount, useReadContract } from "wagmi";
 import { motion } from "framer-motion";
-import { Plus, Users, Wallet, CheckCircle, Loader2, AlertCircle } from "lucide-react";
+import { Target, Loader2, PlusCircle, CheckSquare, PiggyBank } from "lucide-react";
 import Link from "next/link";
-import { useAccount } from "wagmi";
-import { useVaultCounter, useVault } from "@/lib/hooks/useGoalVault";
+import { TASKVAULT_ADDRESS, TASKVAULT_ABI, SAVINGSVAULT_ADDRESS, SAVINGSVAULT_ABI } from "@/lib/contracts-new";
 import { formatEther } from "viem";
-import { useEffect, useState } from "react";
-import type { Vault } from "@/lib/contracts";
 
 export default function DashboardPage() {
     const { address, isConnected } = useAccount();
-    const { vaultCounter, isLoading: isLoadingCounter } = useVaultCounter();
-    const [vaults, setVaults] = useState<(Vault & { id: bigint })[]>([]);
 
-    // Fetch all vaults when counter is available
-    useEffect(() => {
-        if (vaultCounter && vaultCounter > 0n) {
-            // Fetch vaults from 1 to vaultCounter
-            const vaultIds = Array.from({ length: Number(vaultCounter) }, (_, i) => BigInt(i + 1));
-            // We'll load vault data in individual VaultCard components
-            setVaults(vaultIds.map(id => ({ id } as Vault & { id: bigint })));
-        }
-    }, [vaultCounter]);
+    // Read task counter
+    const { data: taskCount } = useReadContract({
+        address: TASKVAULT_ADDRESS,
+        abi: TASKVAULT_ABI,
+        functionName: "taskCounter",
+    });
+
+    // Read savings vault counter
+    const { data: vaultCount } = useReadContract({
+        address: SAVINGSVAULT_ADDRESS,
+        abi: SAVINGSVAULT_ABI,
+        functionName: "vaultCounter",
+    });
+
+    const totalTasks = Number(taskCount || 0);
+    const totalVaults = Number(vaultCount || 0);
 
     if (!isConnected) {
         return (
-            <div className="flex min-h-screen items-center justify-center bg-background px-6 text-foreground">
+            <div className="flex min-h-screen items-center justify-center bg-background px-6">
                 <div className="text-center">
-                    <AlertCircle className="mx-auto mb-4 h-12 w-12 text-yellow-500" />
-                    <h2 className="mb-2 text-2xl font-bold text-white">Wallet Not Connected</h2>
-                    <p className="text-zinc-400">Please connect your wallet to view your vaults</p>
+                    <Target className="mx-auto mb-4 h-16 w-16 text-zinc-600" />
+                    <h2 className="mb-2 text-2xl font-bold text-white">Connect Your Wallet</h2>
+                    <p className="text-zinc-400">Please connect your wallet to view your dashboard</p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-background px-6 pt-24 pb-12 text-foreground">
-            <div className="mx-auto max-w-6xl">
+        <div className="min-h-screen bg-background px-6 pt-24 pb-12">
+            <div className="mx-auto max-w-7xl">
                 {/* Header */}
-                <div className="mb-12 flex items-center justify-between">
+                <div className="mb-8 flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold tracking-tight text-white">Your Vaults</h1>
-                        <p className="mt-2 text-zinc-400">
-                            {vaultCounter ? `${vaultCounter.toString()} total vault${Number(vaultCounter) !== 1 ? 's' : ''} on Scroll GoalVault` : "Loading..."}
-                        </p>
+                        <h1 className="mb-2 text-3xl font-bold text-white">Dashboard</h1>
+                        <p className="text-zinc-400">Manage your tasks and savings vaults</p>
                     </div>
-                    <Link href="/dashboard/create">
-                        <button className="flex items-center gap-2 rounded-xl bg-primary px-6 py-3 font-bold text-primary-foreground transition-all hover:bg-yellow-400 shadow-[0_0_20px_-5px_rgba(255,214,117,0.3)]">
-                            <Plus className="h-5 w-5" />
-                            Create New Vault
-                        </button>
-                    </Link>
+                    <div className="flex gap-3">
+                        <Link href="/create/task">
+                            <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                className="flex items-center gap-2 rounded-xl bg-primary px-6 py-3 font-bold text-primary-foreground transition-colors hover:bg-yellow-400"
+                            >
+                                <CheckSquare className="h-5 w-5" />
+                                Create Task
+                            </motion.button>
+                        </Link>
+                        <Link href="/create/savings">
+                            <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                className="flex items-center gap-2 rounded-xl bg-green-600 px-6 py-3 font-bold text-white transition-colors hover:bg-green-700"
+                            >
+                                <PiggyBank className="h-5 w-5" />
+                                Create Savings
+                            </motion.button>
+                        </Link>
+                    </div>
                 </div>
 
-                {/* Vaults Grid */}
-                {isLoadingCounter ? (
-                    <div className="flex items-center justify-center py-20">
-                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    </div>
-                ) : vaults.length === 0 ? (
-                    <div className="text-center py-20">
-                        <p className="mb-4 text-zinc-400">No vaults yet. Create one to get started!</p>
-                        <Link href="/dashboard/create">
-                            <button className="rounded-xl bg-primary px-8 py-3 font-bold text-primary-foreground transition-all hover:bg-yellow-400">
-                                Create First Vault
-                            </button>
-                        </Link>
-                    </div>
-                ) : (
-                    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                        {vaults.map((vault) => (
-                            <VaultCard key={vault.id.toString()} vaultId={vault.id} />
-                        ))}
-
-                        {/* Create Placeholder Card */}
-                        <Link href="/dashboard/create" className="group flex min-h-[250px] cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/20 transition-all hover:border-zinc-700 hover:bg-zinc-900/40">
-                            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-zinc-800 group-hover:bg-zinc-700">
-                                <Plus className="h-8 w-8 text-zinc-500 group-hover:text-zinc-300" />
+                {/* Stats */}
+                <div className="mb-8 grid gap-6 md:grid-cols-2">
+                    <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-primary/10 to-transparent p-6">
+                        <div className="mb-2 flex items-center gap-3">
+                            <div className="rounded-lg bg-primary/20 p-3">
+                                <CheckSquare className="h-6 w-6 text-primary" />
                             </div>
-                            <p className="font-medium text-zinc-500 group-hover:text-zinc-300">Create New Vault</p>
+                            <div>
+                                <p className="text-sm text-zinc-400">Total Tasks</p>
+                                <p className="text-3xl font-bold text-white">{totalTasks}</p>
+                            </div>
+                        </div>
+                        <p className="text-sm text-zinc-500">Active task accountability vaults</p>
+                    </div>
+
+                    <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-green-500/10 to-transparent p-6">
+                        <div className="mb-2 flex items-center gap-3">
+                            <div className="rounded-lg bg-green-500/20 p-3">
+                                <PiggyBank className="h-6 w-6 text-green-500" />
+                            </div>
+                            <div>
+                                <p className="text-sm text-zinc-400">Total Savings</p>
+                                <p className="text-3xl font-bold text-white">{totalVaults}</p>
+                            </div>
+                        </div>
+                        <p className="text-sm text-zinc-500">Active group savings vaults</p>
+                    </div>
+                </div>
+
+                {/* Tasks Section */}
+                <div className="mb-8">
+                    <div className="mb-4 flex items-center justify-between">
+                        <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                            <CheckSquare className="h-6 w-6 text-primary" />
+                            My Tasks
+                        </h2>
+                        <Link href="/create/task" className="text-sm text-primary hover:underline">
+                            Create New →
                         </Link>
                     </div>
-                )}
+
+                    {totalTasks === 0 ? (
+                        <div className="rounded-2xl border border-zinc-800 bg-card p-12 text-center">
+                            <CheckSquare className="mx-auto mb-4 h-12 w-12 text-zinc-600" />
+                            <h3 className="mb-2 text-xl font-bold text-white">No Tasks Yet</h3>
+                            <p className="mb-6 text-zinc-400">Create your first task accountability vault</p>
+                            <Link href="/create/task">
+                                <button className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 font-bold text-primary-foreground hover:bg-yellow-400">
+                                    <PlusCircle className="h-5 w-5" />
+                                    Create Task
+                                </button>
+                            </Link>
+                        </div>
+                    ) : (
+                        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                            {Array.from({ length: totalTasks }, (_, i) => i + 1).map((taskId) => (
+                                <TaskCard key={taskId} taskId={BigInt(taskId)} />
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {/* Savings Section */}
+                <div>
+                    <div className="mb-4 flex items-center justify-between">
+                        <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                            <PiggyBank className="h-6 w-6 text-green-500" />
+                            My Savings Vaults
+                        </h2>
+                        <Link href="/create/savings" className="text-sm text-green-500 hover:underline">
+                            Create New →
+                        </Link>
+                    </div>
+
+                    {totalVaults === 0 ? (
+                        <div className="rounded-2xl border border-zinc-800 bg-card p-12 text-center">
+                            <PiggyBank className="mx-auto mb-4 h-12 w-12 text-zinc-600" />
+                            <h3 className="mb-2 text-xl font-bold text-white">No Savings Vaults Yet</h3>
+                            <p className="mb-6 text-zinc-400">Create your first group savings vault</p>
+                            <Link href="/create/savings">
+                                <button className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-6 py-3 font-bold text-white hover:bg-green-700">
+                                    <PlusCircle className="h-5 w-5" />
+                                    Create Savings
+                                </button>
+                            </Link>
+                        </div>
+                    ) : (
+                        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                            {Array.from({ length: totalVaults }, (_, i) => i + 1).map((vaultId) => (
+                                <SavingsCard key={vaultId} vaultId={BigInt(vaultId)} />
+                            ))}
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );
 }
 
-function VaultCard({ vaultId }: { vaultId: bigint }) {
-    const { vault, isLoading, error } = useVault(vaultId);
+// Task Card Component
+function TaskCard({ taskId }: { taskId: bigint }) {
+    const { data: task } = useReadContract({
+        address: TASKVAULT_ADDRESS,
+        abi: TASKVAULT_ABI,
+        functionName: "getTask",
+        args: [taskId],
+    });
 
-    if (isLoading) {
+    if (!task) {
         return (
-            <div className="flex min-h-[250px] items-center justify-center rounded-2xl border border-zinc-800 bg-card">
-                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <div className="rounded-2xl border border-zinc-800 bg-card p-6">
+                <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
             </div>
         );
     }
 
-    if (error || !vault) {
-        return null;
-    }
-
-    const progress = vault.financialGoal > 0n
-        ? Math.min(100, Number((vault.totalDeposited * 100n) / vault.financialGoal))
-        : 0;
-
-    const isCompleted = progress === 100;
-    const statusText = vault.status === 0 ? "Active" : vault.status === 1 ? "Completed" : vault.status === 2 ? "Failed" : "Cancelled";
-
-    // Calculate deadline
+    const [id, description, creator, stakeAmount, deadline, isActive, memberCount] = task;
     const now = BigInt(Math.floor(Date.now() / 1000));
-    const timeLeft = vault.deadline > now ? vault.deadline - now : 0n;
-    const daysLeft = timeLeft > 0n ? Number(timeLeft) / 86400 : 0;
-    const deadlineText = daysLeft > 1 ? `${Math.ceil(daysLeft)} Days Left` : daysLeft > 0 ? "< 1 Day Left" : "Ended";
+    const hasExpired = deadline < now;
 
     return (
-        <Link href={`/vault/${vaultId}`}>
+        <Link href={`/task/${id}`}>
             <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="group relative overflow-hidden rounded-2xl border border-zinc-800 bg-card p-6 transition-all hover:border-zinc-700 hover:shadow-lg cursor-pointer"
+                whileHover={{ scale: 1.02 }}
+                className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-primary/5 to-transparent p-6 transition-all hover:border-primary/50 cursor-pointer"
             >
                 <div className="mb-4 flex items-start justify-between">
-                    <div className={`rounded-full px-3 py-1 text-xs font-medium ${statusText === "Active" ? "bg-primary/10 text-primary" :
-                            statusText === "Completed" ? "bg-green-500/10 text-green-500" :
-                                "bg-zinc-500/10 text-zinc-500"
-                        }`}>
-                        {statusText}
+                    <div className="rounded-lg bg-primary/20 p-2">
+                        <CheckSquare className="h-5 w-5 text-primary" />
                     </div>
-                    <span className="text-xs text-zinc-500">{deadlineText}</span>
+                    <span className={`text-xs px-2 py-1 rounded-full ${isActive ? 'bg-green-900/30 text-green-500' : 'bg-zinc-800 text-zinc-500'}`}>
+                        {isActive ? 'Active' : 'Inactive'}
+                    </span>
                 </div>
 
-                <h3 className="mb-2 text-xl font-bold text-white truncate">{vault.name || `Vault #${vaultId}`}</h3>
-                <p className="mb-6 text-sm text-zinc-400">
-                    Goal: <span className="text-white">{formatEther(vault.financialGoal)} ETH</span>
-                </p>
+                <h3 className="mb-2 text-lg font-bold text-white line-clamp-2">{description}</h3>
 
-                {/* Progress Bar */}
-                <div className="mb-4">
-                    <div className="mb-2 flex justify-between text-xs">
-                        <span className="text-zinc-500">Progress</span>
-                        <span className={isCompleted ? "text-green-400" : "text-white"}>{progress}%</span>
+                <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                        <span className="text-zinc-500">Stake:</span>
+                        <span className="font-medium text-primary">{formatEther(stakeAmount)} ETH</span>
                     </div>
-                    <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-900">
+                    <div className="flex justify-between">
+                        <span className="text-zinc-500">Members:</span>
+                        <span className="text-white">{Number(memberCount)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span className="text-zinc-500">Status:</span>
+                        <span className={hasExpired ? 'text-red-500' : 'text-green-500'}>
+                            {hasExpired ? 'Expired' : 'Active'}
+                        </span>
+                    </div>
+                </div>
+            </motion.div>
+        </Link>
+    );
+}
+
+// Savings Card Component
+function SavingsCard({ vaultId }: { vaultId: bigint }) {
+    const { data: vault } = useReadContract({
+        address: SAVINGSVAULT_ADDRESS,
+        abi: SAVINGSVAULT_ABI,
+        functionName: "getVault",
+        args: [vaultId],
+    });
+
+    if (!vault) {
+        return (
+            <div className="rounded-2xl border border-zinc-800 bg-card p-6">
+                <Loader2 className="mx-auto h-8 w-8 animate-spin text-green-500" />
+            </div>
+        );
+    }
+
+    const [id, name, creator, savingsGoal, totalContributed, deadline, payoutAddress, isActive, fundsReleased, memberCount] = vault;
+    const progress = savingsGoal > 0n ? Math.min(100, Number((totalContributed * 100n) / savingsGoal)) : 0;
+    const now = BigInt(Math.floor(Date.now() / 1000));
+    const hasExpired = deadline < now;
+
+    return (
+        <Link href={`/savings/${id}`}>
+            <motion.div
+                whileHover={{ scale: 1.02 }}
+                className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-green-500/5 to-transparent p-6 transition-all hover:border-green-500/50 cursor-pointer"
+            >
+                <div className="mb-4 flex items-start justify-between">
+                    <div className="rounded-lg bg-green-500/20 p-2">
+                        <PiggyBank className="h-5 w-5 text-green-500" />
+                    </div>
+                    <span className={`text-xs px-2 py-1 rounded-full ${isActive ? 'bg-green-900/30 text-green-500' : 'bg-zinc-800 text-zinc-500'}`}>
+                        {isActive ? 'Active' : 'Completed'}
+                    </span>
+                </div>
+
+                <h3 className="mb-3 text-lg font-bold text-white line-clamp-1">{name}</h3>
+
+                <div className="mb-3">
+                    <div className="mb-1 flex justify-between text-xs">
+                        <span className="text-zinc-500">Progress</span>
+                        <span className="text-white">{progress}%</span>
+                    </div>
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-800">
                         <div
-                            className={`h-full rounded-full transition-all duration-1000 ${isCompleted ? 'bg-green-500' : 'bg-primary'}`}
+                            className="h-full bg-green-500 transition-all"
                             style={{ width: `${progress}%` }}
                         />
                     </div>
                 </div>
 
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-sm text-zinc-400">
-                        <Users className="h-4 w-4" />
-                        <span>{vault.memberCount.toString()} members</span>
+                <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                        <span className="text-zinc-500">Goal:</span>
+                        <span className="font-medium text-green-500">{formatEther(savingsGoal)} ETH</span>
                     </div>
-                    <div className="text-xs text-zinc-500">
-                        {vault.requiredTasksPerMember.toString()} tasks each
+                    <div className="flex justify-between">
+                        <span className="text-zinc-500">Contributed:</span>
+                        <span className="text-white">{formatEther(totalContributed)} ETH</span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span className="text-zinc-500">Members:</span>
+                        <span className="text-white">{Number(memberCount)}</span>
                     </div>
                 </div>
             </motion.div>

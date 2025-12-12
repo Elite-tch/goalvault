@@ -10,6 +10,11 @@ const nextConfig: NextConfig = {
         path: false,
         os: false,
         'why-is-node-running': false,
+        // React Native dependencies from MetaMask SDK
+        '@react-native-async-storage/async-storage': false,
+        'react-native': false,
+        // Optional pino dependencies
+        'pino-pretty': false,
       };
     }
     return config;

@@ -4,6 +4,7 @@ import "./globals.css";
 import "@rainbow-me/rainbowkit/styles.css";
 import { Providers } from "./providers";
 import Navbar from "@/components/Navbar";
+import { Toaster } from "react-hot-toast";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,6 +34,23 @@ export default function RootLayout({
         <Providers>
           <Navbar />
           {children}
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              duration: 4000,
+              style: {
+                background: '#18181b',
+                color: '#fff',
+                border: '1px solid #27272a',
+              },
+              success: {
+                iconTheme: {
+                  primary: '#ffd675',
+                  secondary: '#000',
+                },
+              },
+            }}
+          />
         </Providers>
       </body>
     </html>
