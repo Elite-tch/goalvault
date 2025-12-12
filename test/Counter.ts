@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import { network } from "hardhat";
 
 describe("Counter", async function () {
+  
   const { viem } = await network.connect();
   const publicClient = await viem.getPublicClient();
 
@@ -38,9 +39,9 @@ describe("Counter", async function () {
     });
 
     let total = 0n;
-    for (const event of events) {
-      total += event.args.by;
-    }
+for (const event of events as any) {
+  total += event.args.by; // bypass TypeScript
+}
 
     assert.equal(total, await counter.read.x());
   });

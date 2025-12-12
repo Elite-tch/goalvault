@@ -10,7 +10,7 @@ export default function Navbar() {
 
     return (
         <nav className="fixed top-0 z-50 w-full border-b border-white/5 bg-black/50 backdrop-blur-xl">
-            <div className="flex h-16 items-center justify-between px-6">
+            <div className="flex h-20 items-center justify-between px-6">
                 <div className="flex items-center gap-8">
                     <Link href="/" className="text-xl font-bold tracking-tighter text-white">
                         📜 GoalVault
@@ -29,10 +29,10 @@ export default function Navbar() {
                             Create
                         </Link>
                         <Link
-                            href="/explore"
+                            href="/docs"
                             className="text-sm font-medium text-zinc-400 transition-colors hover:text-primary"
                         >
-                            Explore
+                            Docs
                         </Link>
                     </div>
                 </div>

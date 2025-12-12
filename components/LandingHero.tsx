@@ -46,7 +46,7 @@ export default function LandingHero() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.6, duration: 0.8 }}
             >
-                <Link href="/create" className="group flex items-center gap-2 rounded-xl bg-primary px-8 py-4 text-lg font-bold text-primary-foreground transition-all hover:bg-yellow-400">
+                <Link href="/create" className="group border border-zinc-800 z-50 flex items-center gap-2 rounded-xl bg-primary px-8 py-4 text-lg font-bold text-primary-foreground transition-all hover:bg-yellow-400">
                     Start a Vault
                     <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
                 </Link>
