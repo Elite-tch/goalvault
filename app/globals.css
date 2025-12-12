@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+:root {
+  /* Scroll Theme Colors */
+  --background: #0a0a0a;  /* Deepest Black */
+  --foreground: #fff0d5;  /* Scroll Cream */
+  
+  --card: #141414;        /* Slightly lighter black for cards */
+  --card-foreground: #fff0d5;
+
+  --popover: #141414;
+  --popover-foreground: #fff0d5;
+
+  --primary: #ffd675;     /* Scroll Gold */
+  --primary-foreground: #1a1a1a;
+
+  --secondary: #262626;   /* Dark Grey for secondary elements */
+  --secondary-foreground: #fff0d5;
+
+  --muted: #262626;
+  --muted-foreground: #a1a1aa;
+
+  --accent: #eb7a5e;      /* Scroll Red/Orange */
+  --accent-foreground: #fff0d5;
+
+  --destructive: #7f1d1d;
+  --destructive-foreground: #fef2f2;
+
+  --border: #262626;
+  --input: #262626;
+  --ring: #ffd675;
+
+  --radius: 0.5rem;
+}
+
+/* Force Dark Mode */
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@layer utilities {
+  .text-gradient-gold {
+    background: linear-gradient(to right, #ffd675, #ffebb0);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+}
