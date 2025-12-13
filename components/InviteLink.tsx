@@ -40,7 +40,7 @@ export default function InviteLink({ inviteCode, memberAddress, type, memberName
                         {memberAddress.slice(0, 6)}...{memberAddress.slice(-4)}
                     </span>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap sm:flex-nowrap">
                     <button
                         onClick={openLink}
                         className="flex items-center gap-1 rounded-md bg-zinc-800 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-700 transition-colors"
@@ -51,8 +51,8 @@ export default function InviteLink({ inviteCode, memberAddress, type, memberName
                     <button
                         onClick={copyLink}
                         className={`flex items-center gap-1 rounded-md px-3 py-1.5 text-xs transition-colors ${copied
-                                ? 'bg-green-600 text-white'
-                                : 'bg-primary text-primary-foreground hover:bg-yellow-400'
+                            ? 'bg-green-600 text-white'
+                            : 'bg-primary text-primary-foreground hover:bg-yellow-400'
                             }`}
                     >
                         {copied ? (

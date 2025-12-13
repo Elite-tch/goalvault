@@ -125,9 +125,11 @@ export default function VaultDetailsPage() {
 
                 {/* Header */}
                 <div className="mb-8">
-                    <div className="mb-4 flex items-center gap-3">
-                        <h1 className="text-3xl font-bold text-white">{vault.name || `Vault #${vaultId}`}</h1>
-                        <span className={`rounded-full px-3 py-1 text-xs font-medium ${statusText === "Active" ? "bg-primary/10 text-primary" :
+                    <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                            <h1 className="text-2xl break-words sm:text-3xl font-bold text-white">{vault.name || `Vault #${vaultId}`}</h1>
+                        </div>
+                        <span className={`self-start rounded-full px-3 py-1 text-xs font-medium ${statusText === "Active" ? "bg-primary/10 text-primary" :
                             statusText === "Completed" ? "bg-green-500/10 text-green-500" :
                                 "bg-zinc-500/10 text-zinc-500"
                             }`}>

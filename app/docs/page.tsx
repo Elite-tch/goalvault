@@ -576,7 +576,7 @@ export default function DocsPage() {
                             animate={{ x: 0 }}
                             exit={{ x: -300 }}
                             transition={{ type: "spring", damping: 25 }}
-                            className="fixed left-0 top-16 z-40 h-[calc(100vh-4rem)] w-72 overflow-y-auto border-r border-zinc-800 bg-card p-6 md:sticky"
+                            className="fixed left-0 top-16 z-40 h-[calc(100vh-4rem)] w-72 overflow-y-auto border-r border-zinc-800 bg-zinc-950 shadow-xl p-6 md:sticky"
                         >
                             <h2 className="mb-6 text-sm font-bold uppercase tracking-wider text-zinc-500">
                                 Documentation

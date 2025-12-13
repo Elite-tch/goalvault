@@ -151,7 +151,7 @@ export default function CreateSavingsPage() {
                     Back to Mode Selection
                 </Link>
 
-                <h1 className="mb-2 text-3xl font-bold text-white">Create Savings Vault</h1>
+                <h1 className="mb-2 text-2xl sm:text-3xl font-bold text-white">Create Savings Vault</h1>
                 <p className="mb-8 text-zinc-400">
                     Set a savings goal. Members contribute flexibly. Funds locked until deadline.
                 </p>

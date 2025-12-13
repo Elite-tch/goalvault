@@ -43,12 +43,12 @@ export default function DashboardPage() {
         <div className="min-h-screen bg-background px-6 pt-24 pb-12">
             <div className="mx-auto max-w-7xl">
                 {/* Header */}
-                <div className="mb-8 flex items-center justify-between">
+                <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <div>
                         <h1 className="mb-2 text-3xl font-bold text-white">Dashboard</h1>
                         <p className="text-zinc-400">Manage your tasks and savings vaults</p>
                     </div>
-                    <div className="flex gap-3">
+                    <div className="flex flex-wrap gap-3">
                         <Link href="/create/task">
                             <motion.button
                                 whileHover={{ scale: 1.05 }}

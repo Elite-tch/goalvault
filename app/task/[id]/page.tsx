@@ -65,12 +65,12 @@ export default function TaskDetailsPage() {
 
                 {/* Header */}
                 <div className="mb-8 rounded-2xl border border-zinc-800 bg-gradient-to-br from-primary/10 to-transparent p-8">
-                    <div className="mb-4 flex items-start justify-between">
-                        <div>
-                            <h1 className="mb-2 text-3xl font-bold text-white">{description}</h1>
+                    <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                            <h1 className="mb-2 text-2xl break-words sm:text-3xl font-bold text-white">{description}</h1>
                             <p className="text-zinc-400">Task #{id.toString()}</p>
                         </div>
-                        <span className={`rounded-full px-4 py-2 text-sm font-medium ${isActive ? 'bg-green-900/30 text-green-500' : 'bg-zinc-800 text-zinc-500'
+                        <span className={`self-start rounded-full px-4 py-2 text-sm font-medium ${isActive ? 'bg-green-900/30 text-green-500' : 'bg-zinc-800 text-zinc-500'
                             }`}>
                             {isActive ? 'Active' : 'Inactive'}
                         </span>
@@ -215,10 +215,10 @@ function TaskMemberRow({
             {/* Status Badge */}
             <div className="mb-3">
                 <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${hasCompleted
-                        ? 'bg-green-900/30 text-green-500'
-                        : hasStaked
-                            ? 'bg-yellow-900/30 text-yellow-500'
-                            : 'bg-zinc-800 text-zinc-500'
+                    ? 'bg-green-900/30 text-green-500'
+                    : hasStaked
+                        ? 'bg-yellow-900/30 text-yellow-500'
+                        : 'bg-zinc-800 text-zinc-500'
                     }`}>
                     {hasCompleted ? (
                         <><CheckCircle className="h-3 w-3" /> Task Completed</>
@@ -233,7 +233,7 @@ function TaskMemberRow({
             {/* Invite Link */}
             <div className="flex items-center gap-2">
                 <div className="flex-1 rounded-md bg-zinc-950 px-3 py-2">
-                    <p className="truncate font-mono text-xs text-zinc-600">
+                    <p className="break-all font-mono text-xs text-zinc-600">
                         {window.location.origin}/join/task/{inviteCode}
                     </p>
                 </div>

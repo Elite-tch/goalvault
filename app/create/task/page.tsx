@@ -145,7 +145,7 @@ export default function CreateTaskPage() {
                     Back to Mode Selection
                 </Link>
 
-                <h1 className="mb-2 text-3xl font-bold text-white">Create Task Vault</h1>
+                <h1 className="mb-2 text-2xl sm:text-3xl font-bold text-white">Create Task Vault</h1>
                 <p className="mb-8 text-zinc-400">
                     Set a task with fixed stake. Members pay exact amount and complete before deadline.
                 </p>
