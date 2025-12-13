@@ -6,7 +6,7 @@ import Link from "next/link";
 
 export default function LandingHero() {
     return (
-        <section className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-4 py-24 text-center">
+        <section className="relative flex min-h-screen  flex-col items-center justify-center overflow-hidden px-4 py-24 text-center">
             {/* Background Elements */}
             <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-zinc-900 via-[#0a0a0a] to-[#0a0a0a]" />
             <div className="absolute top-1/4 h-96 w-96 rounded-full bg-primary/10 blur-3xl filter" />
@@ -15,7 +15,7 @@ export default function LandingHero() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8 }}
-                className="mb-8 flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/50 px-4 py-1.5 text-sm text-zinc-400 backdrop-blur-md"
+                className="mb-8 flex items-center mt-10 gap-2 rounded-full border border-zinc-800 bg-zinc-900/50 px-4 py-1.5 text-sm text-zinc-400 backdrop-blur-md"
             >
                 <span className="flex h-2 w-2 rounded-full bg-green-500"></span>
                 Now Live on Scroll Sepolia

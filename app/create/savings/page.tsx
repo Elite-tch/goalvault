@@ -159,27 +159,27 @@ export default function CreateSavingsPage() {
                 {!inviteLinks.length ? (
                     <form onSubmit={handleCreate} className="space-y-6 rounded-2xl border border-zinc-800 bg-card p-8">
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-zinc-300">Vault Name</label>
+                            <label className="text-sm  font-medium text-zinc-300">Vault Name</label>
                             <input
                                 type="text"
                                 value={vaultName}
                                 onChange={(e) => setVaultName(e.target.value)}
                                 placeholder="e.g., Team Trip Fund 2025"
-                                className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-white placeholder-zinc-600 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                                className="w-full rounded-lg mt-3 border border-zinc-800 bg-zinc-900 px-4 py-3 text-white placeholder-zinc-600 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                                 required
                                 disabled={isPending || isConfirming}
                             />
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-zinc-300">Savings Goal (ETH)</label>
+                            <label className="text-sm  font-medium text-zinc-300">Savings Goal (ETH)</label>
                             <input
                                 type="number"
                                 step="0.01"
                                 value={savingsGoal}
                                 onChange={(e) => setSavingsGoal(e.target.value)}
                                 placeholder="1.0"
-                                className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-white placeholder-zinc-600 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                                className="w-full rounded-lg mt-3 border border-zinc-800 bg-zinc-900 px-4 py-3 text-white placeholder-zinc-600 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                                 required
                                 disabled={isPending || isConfirming}
                             />
@@ -187,13 +187,13 @@ export default function CreateSavingsPage() {
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-zinc-300">Payout Address</label>
+                            <label className="text-sm  font-medium text-zinc-300">Payout Address</label>
                             <input
                                 type="text"
                                 value={payoutAddress}
                                 onChange={(e) => setPayoutAddress(e.target.value)}
                                 placeholder="0x... where funds go if goal is met"
-                                className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-white placeholder-zinc-600 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                                className="w-full rounded-lg mt-3 border border-zinc-800 bg-zinc-900 px-4 py-3 text-white placeholder-zinc-600 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                                 required
                                 disabled={isPending || isConfirming}
                             />
@@ -214,7 +214,7 @@ export default function CreateSavingsPage() {
 
                             <div className="space-y-3">
                                 {members.map((member, index) => (
-                                    <div key={index} className="flex gap-2">
+                                    <div key={index} className="flex md:flex-row flex-col gap-2">
                                         <input
                                             type="text"
                                             value={member.name}

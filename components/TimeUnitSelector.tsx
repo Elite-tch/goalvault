@@ -36,14 +36,14 @@ export default function TimeUnitSelector({
                     min="1"
                     value={value}
                     onChange={(e) => onValueChange(parseInt(e.target.value) || 1)}
-                    className="w-24 rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="w-24 mt-3 rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     placeholder="1"
                     disabled={disabled}
                 />
                 <select
                     value={unit}
                     onChange={(e) => onUnitChange(e.target.value as TimeUnit)}
-                    className="flex-1 rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="flex-1 mt-3 rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     disabled={disabled}
                 >
                     <option value="seconds">Seconds</option>

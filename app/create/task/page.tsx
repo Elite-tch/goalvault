@@ -153,27 +153,27 @@ export default function CreateTaskPage() {
                 {!inviteLinks.length ? (
                     <form onSubmit={handleCreate} className="space-y-6 rounded-2xl border border-zinc-800 bg-card p-8">
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-zinc-300">Task Description</label>
+                            <label className="text-sm  font-medium text-zinc-300">Task Description</label>
                             <input
                                 type="text"
                                 value={taskDescription}
                                 onChange={(e) => setTaskDescription(e.target.value)}
                                 placeholder="e.g., Complete landing page design"
-                                className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-white placeholder-zinc-600 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                                className="w-full rounded-lg mt-3 border border-zinc-800 bg-zinc-900 px-4 py-3 text-white placeholder-zinc-600 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                                 required
                                 disabled={isPending || isConfirming}
                             />
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-zinc-300">Stake Amount (ETH per member)</label>
+                            <label className="text-sm  font-medium text-zinc-300">Stake Amount (ETH per member)</label>
                             <input
                                 type="number"
                                 step="0.001"
                                 value={stakeAmount}
                                 onChange={(e) => setStakeAmount(e.target.value)}
                                 placeholder="0.01"
-                                className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-white placeholder-zinc-600 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                                className="w-full rounded-lg mt-3 border border-zinc-800 bg-zinc-900 px-4 py-3 text-white placeholder-zinc-600 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                                 required
                                 disabled={isPending || isConfirming}
                             />
@@ -189,12 +189,12 @@ export default function CreateTaskPage() {
                         />
 
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-zinc-300">Team Members</label>
+                            <label className="text-sm  font-medium text-zinc-300">Team Members</label>
                             <p className="text-xs text-zinc-500 mb-3">Add members who will receive unique invite links</p>
 
                             <div className="space-y-3">
                                 {members.map((member, index) => (
-                                    <div key={index} className="flex gap-2">
+                                    <div key={index} className="flex md:flex-row flex-col gap-2">
                                         <input
                                             type="text"
                                             value={member.name}
