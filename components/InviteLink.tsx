@@ -9,14 +9,20 @@ interface InviteLinkProps {
     memberAddress: string;
     type: "task" | "savings";
     memberName?: string;
+    queryParams?: Record<string, string>;
 }
 
-export default function InviteLink({ inviteCode, memberAddress, type, memberName }: InviteLinkProps) {
+export default function InviteLink({ inviteCode, memberAddress, type, memberName, queryParams }: InviteLinkProps) {
     const [copied, setCopied] = useState(false);
 
     // Generate full invite link
     const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
-    const link = `${baseUrl}/join/${type}/${inviteCode}`;
+    let link = `${baseUrl}/join/${type}/${inviteCode}`;
+
+    if (queryParams) {
+        const usp = new URLSearchParams(queryParams);
+        link += `?${usp.toString()}`;
+    }
 
     const copyLink = () => {
         navigator.clipboard.writeText(link);

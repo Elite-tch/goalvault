@@ -1,136 +1,72 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
-import { formatEther, parseEther } from "viem";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useAccount } from "wagmi";
+import { formatEther } from "viem";
 import toast from "react-hot-toast";
-import { motion } from "framer-motion";
-import { Loader2, CheckCircle, AlertTriangle, Clock, Coins } from "lucide-react";
+import { Loader2, CheckCircle, AlertTriangle, Clock, Coins, Link2, ExternalLink } from "lucide-react";
 import Link from "next/link";
-import { TASKVAULT_ADDRESS, TASKVAULT_ABI, PENALTY_RECEIVER } from "@/lib/contracts-new";
+import { useVault, useVaultMembers, useJoinVault } from "@/lib/hooks/useGoalVault";
+import { VaultStatus } from "@/lib/contracts";
+import CountdownTimer from "@/components/CountdownTimer";
 
 export default function JoinTaskPage() {
     const params = useParams();
+    const searchParams = useSearchParams();
     const router = useRouter();
     const { address, isConnected } = useAccount();
-    const inviteCode = params?.code as string;
 
-    const [taskInfo, setTaskInfo] = useState<any>(null);
-    const [memberInfo, setMemberInfo] = useState<any>(null);
+    // inviteCode is effectively vaultId now
+    const vaultIdString = params?.code as string;
+    const vaultId = vaultIdString ? BigInt(vaultIdString) : undefined;
+    const stakeAmount = searchParams?.get("amount");
+    const invitee = searchParams?.get("invitee");
 
-    // Read task ID from invite code
-    const { data: taskId } = useReadContract({
-        address: TASKVAULT_ADDRESS,
-        abi: TASKVAULT_ABI,
-        functionName: "inviteCodeToTaskId",
-        args: [inviteCode as `0x${string}`]
-    });
+    const { vault, isLoading: isLoadingVault, refetch: refetchVault } = useVault(vaultId);
+    const { members, isLoading: isLoadingMembers, refetch: refetchMembers } = useVaultMembers(vaultId);
+    const { joinVault, isPending, isSuccess, error } = useJoinVault();
 
-    // Read task details
-    const { data: task, isLoading: isLoadingTask } = useReadContract({
-        address: TASKVAULT_ADDRESS,
-        abi: TASKVAULT_ABI,
-        functionName: "getTask",
-        args: taskId ? [taskId] : undefined,
-        query: { enabled: !!taskId }
-    });
-
-    // Read member info
-    const { data: member, refetch: refetchMember } = useReadContract({
-        address: TASKVAULT_ADDRESS,
-        abi: TASKVAULT_ABI,
-        functionName: "getMemberInfo",
-        args: taskId && address ? [taskId, address] : undefined,
-        query: { enabled: !!taskId && !!address }
-    });
-
-    const { writeContract, data: hash, isPending } = useWriteContract();
-    const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
+    const isMember = members?.some(m => m.toLowerCase() === address?.toLowerCase());
+    const isWrongWallet = isConnected && invitee && address && invitee.toLowerCase() !== address.toLowerCase();
 
     useEffect(() => {
-        if (task) {
-            const [id, description, creator, stakeAmount, deadline, isActive, memberCount] = task;
-            setTaskInfo({ id, description, creator, stakeAmount, deadline, isActive, memberCount });
+        if (isSuccess) {
+            toast.success("Successfully joined the vault!");
+            refetchMembers();
+            refetchVault();
+            setTimeout(() => {
+                router.push(`/vault/${vaultIdString}`);
+            }, 2000);
         }
-    }, [task]);
+    }, [isSuccess, refetchMembers, refetchVault, router, vaultIdString]);
 
     useEffect(() => {
-        if (member) {
-            const [wallet, stakedAmount, hasStaked, hasCompleted, completedAt, inviteCode] = member;
-            setMemberInfo({ wallet, stakedAmount, hasStaked, hasCompleted, completedAt, inviteCode });
+        if (error) {
+            console.error(error);
+            if (error.message.includes("Not whitelisted") || error.message.includes("Not invited")) {
+                toast.error("You are not invited to join this vault.");
+            } else {
+                toast.error("Failed to join vault. Check console for details.");
+            }
         }
-    }, [member]);
+    }, [error]);
 
     const handleStake = async () => {
         if (!isConnected) {
             toast.error("Please connect your wallet!");
             return;
         }
-
-        if (!taskInfo) {
-            toast.error("Task information not loaded!");
+        if (!vaultId) return;
+        if (!stakeAmount) {
+            toast.error("Invalid invite link: missing stake amount");
             return;
         }
 
-        try {
-            writeContract({
-                address: TASKVAULT_ADDRESS,
-                abi: TASKVAULT_ABI,
-                functionName: "stakeWithInvite",
-                args: [inviteCode as `0x${string}`],
-                value: taskInfo.stakeAmount
-            });
-
-            toast.loading("Staking...");
-        } catch (error: any) {
-            toast.error(error.message || "Failed to stake");
-        }
+        await joinVault(vaultId, stakeAmount);
     };
 
-    const handleCompleteTask = async () => {
-        if (!taskId) return;
-
-        try {
-            writeContract({
-                address: TASKVAULT_ADDRESS,
-                abi: TASKVAULT_ABI,
-                functionName: "completeTask",
-                args: [taskId]
-            });
-
-            toast.loading("Marking task as complete...");
-        } catch (error: any) {
-            toast.error(error.message || "Failed to complete task");
-        }
-    };
-
-    const handleClaim = async () => {
-        if (!taskId) return;
-
-        try {
-            writeContract({
-                address: TASKVAULT_ADDRESS,
-                abi: TASKVAULT_ABI,
-                functionName: "claimAfterDeadline",
-                args: [taskId]
-            });
-
-            toast.loading("Claiming refund...");
-        } catch (error: any) {
-            toast.error(error.message || "Failed to claim");
-        }
-    };
-
-    useEffect(() => {
-        if (isSuccess) {
-            toast.dismiss();
-            toast.success("Transaction successful!");
-            refetchMember();
-        }
-    }, [isSuccess]);
-
-    if (isLoadingTask) {
+    if (isLoadingVault) {
         return (
             <div className="flex min-h-screen items-center justify-center bg-background">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -138,12 +74,13 @@ export default function JoinTaskPage() {
         );
     }
 
-    if (!taskInfo || !taskInfo.isActive) {
+    if (!vault || vaultIdString === undefined) {
         return (
             <div className="flex min-h-screen items-center justify-center bg-background px-6">
                 <div className="text-center">
                     <AlertTriangle className="mx-auto mb-4 h-12 w-12 text-yellow-500" />
-                    <h2 className="mb-2 text-2xl font-bold text-white">Invalid or Inactive Task</h2>
+                    <h2 className="mb-2 text-2xl font-bold text-white">Vault Not Found</h2>
+                    <p className="text-zinc-400 mb-4">The invite link might be invalid.</p>
                     <Link href="/dashboard" className="text-primary hover:underline">
                         Go to Dashboard
                     </Link>
@@ -153,104 +90,100 @@ export default function JoinTaskPage() {
     }
 
     const now = BigInt(Math.floor(Date.now() / 1000));
-    const timeLeft = taskInfo.deadline > now ? taskInfo.deadline - now : 0n;
-    const hasExpired = timeLeft === 0n;
+    const isExpired = vault.deadline < now;
+    const isActive = vault.status === VaultStatus.Active && !isExpired;
 
     return (
         <div className="min-h-screen bg-background px-6 pt-24 pb-12">
             <div className="mx-auto max-w-2xl">
-                <h1 className="mb-2 text-3xl font-bold text-white">Task Invite</h1>
-                <p className="mb-8 text-zinc-400">Review the task and stake to participate</p>
+                <h1 className="mb-2 text-3xl font-bold text-white">Join Task Vault</h1>
+                <p className="mb-8 text-zinc-400">Review the commitment and stake to join</p>
 
                 <div className="space-y-6">
-                    {/* Task Details */}
+                    {/* Vault Details */}
                     <div className="rounded-2xl border border-zinc-800 bg-card p-6">
-                        <h3 className="mb-4 text-xl font-bold text-white">Task Details</h3>
+                        <h3 className="mb-4 text-xl font-bold text-white">Vault Details</h3>
 
                         <div className="space-y-3">
                             <div>
-                                <p className="text-sm text-zinc-500">Description</p>
-                                <p className="text-white">{taskInfo.description}</p>
+                                <p className="text-sm text-zinc-500">Name</p>
+                                <p className="text-white font-medium">{vault.name}</p>
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <p className="text-sm text-zinc-500">Stake Required</p>
-                                    <p className="text-lg font-bold text-primary">{formatEther(taskInfo.stakeAmount)} ETH</p>
+                                    <p className="text-sm text-zinc-500">Required Stake</p>
+                                    <p className="text-lg font-bold text-primary">
+                                        {stakeAmount ? `${stakeAmount} ETH` : "???? ETH"}
+                                    </p>
                                 </div>
                                 <div>
                                     <p className="text-sm text-zinc-500">Deadline</p>
-                                    <p className="text-white">
-                                        {hasExpired ? "Expired" : `${Math.floor(Number(timeLeft) / 86400)}d ${Math.floor((Number(timeLeft) % 86400) / 3600)}h left`}
-                                    </p>
+                                    <div className="text-white mt-1">
+                                        <CountdownTimer targetDate={vault.deadline} />
+                                    </div>
                                 </div>
+                            </div>
+
+                            <div>
+                                <p className="text-sm text-zinc-500">Host</p>
+                                <a
+                                    href={`https://sepolia.scrollscan.com/address/${vault.creator}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-primary hover:underline flex items-center gap-1 text-sm"
+                                >
+                                    {vault.creator.slice(0, 6)}...{vault.creator.slice(-4)} <ExternalLink className="h-3 w-3" />
+                                </a>
                             </div>
                         </div>
                     </div>
 
-                    {/* Stake Status */}
-                    {memberInfo && memberInfo.hasStaked ? (
-                        <div className="space-y-4">
-                            <div className="rounded-2xl border border-green-800 bg-green-900/20 p-6">
-                                <div className="flex items-center gap-3 mb-4">
-                                    <CheckCircle className="h-6 w-6 text-green-500" />
-                                    <div>
-                                        <h3 className="font-bold text-white">You've Staked!</h3>
-                                        <p className="text-sm text-green-400">Amount: {formatEther(memberInfo.stakedAmount)} ETH</p>
-                                    </div>
-                                </div>
-
-                                {memberInfo.hasCompleted ? (
-                                    <div className="rounded-lg border border-green-700 bg-green-900/30 p-4">
-                                        <p className="text-sm text-green-400">✓ Task Completed! You can claim your full refund after deadline.</p>
-                                    </div>
-                                ) : hasExpired ? (
-                                    <div className="rounded-lg border border-red-700 bg-red-900/30 p-4">
-                                        <p className="text-sm text-red-400">⚠️ Deadline passed without completion. You'll receive refund minus 10% penalty.</p>
-                                    </div>
-                                ) : (
-                                    <button
-                                        onClick={handleCompleteTask}
-                                        disabled={isPending || isConfirming}
-                                        className="w-full mt-4 rounded-lg bg-green-600 px-6 py-3 font-bold text-white hover:bg-green-700 transition-colors disabled:opacity-50"
-                                    >
-                                        {isPending || isConfirming ? (
-                                            <><Loader2 className="h-4 w-4 animate-spin inline mr-2" /> Completing...</>
-                                        ) : (
-                                            "Mark Task as Complete"
-                                        )}
-                                    </button>
-                                )}
-
-                                {hasExpired && (
-                                    <button
-                                        onClick={handleClaim}
-                                        disabled={isPending || isConfirming}
-                                        className="w-full mt-4 rounded-lg bg-primary px-6 py-3 font-bold text-primary-foreground hover:bg-yellow-400 transition-colors disabled:opacity-50"
-                                    >
-                                        {isPending || isConfirming ? (
-                                            <><Loader2 className="h-4 w-4 animate-spin inline mr-2" /> Claiming...</>
-                                        ) : (
-                                            "Claim Refund"
-                                        )}
-                                    </button>
-                                )}
+                    {/* Join / Status Section */}
+                    {isWrongWallet ? (
+                        <div className="rounded-2xl border border-red-800 bg-red-900/10 p-6 text-center">
+                            <AlertTriangle className="mx-auto mb-4 h-12 w-12 text-red-500" />
+                            <h3 className="mb-2 text-xl font-bold text-white">Wrong Wallet Connected</h3>
+                            <p className="text-zinc-400 mb-2">This invite is for a specific wallet.</p>
+                            <div className="mb-6 rounded bg-black/30 p-3 font-mono text-sm text-zinc-300">
+                                Expected: <span className="text-yellow-500">{invitee?.slice(0, 8)}...{invitee?.slice(-6)}</span>
+                                <br />
+                                Connected: <span className="text-red-400">{address?.slice(0, 8)}...{address?.slice(-6)}</span>
                             </div>
-
-                            <div className="rounded-lg border border-yellow-900 bg-yellow-900/10 p-4">
-                                <p className="text-xs text-yellow-500">
-                                    ℹ️ <strong>Penalty:</strong> If you don't complete before deadline, 10% of your stake goes to {PENALTY_RECEIVER.slice(0, 8)}...
-                                </p>
-                            </div>
+                            <p className="text-sm text-zinc-500">Please switch accounts in your wallet.</p>
+                        </div>
+                    ) : isMember ? (
+                        <div className="rounded-2xl border border-green-800 bg-green-900/20 p-6 text-center">
+                            <CheckCircle className="mx-auto mb-4 h-12 w-12 text-green-500" />
+                            <h3 className="mb-2 text-xl font-bold text-white">You have joined!</h3>
+                            <p className="text-zinc-400 mb-6">You are a participant in this vault.</p>
+                            <Link href={`/vault/${vaultIdString}`}>
+                                <button className="w-full rounded-lg bg-green-600 px-6 py-3 font-bold text-white hover:bg-green-700 transition-colors">
+                                    Go to Vault Dashboard
+                                </button>
+                            </Link>
+                        </div>
+                    ) : !isActive ? (
+                        <div className="rounded-2xl border border-red-800 bg-red-900/10 p-6 text-center">
+                            <AlertTriangle className="mx-auto mb-4 h-12 w-12 text-red-500" />
+                            <h3 className="mb-2 text-xl font-bold text-white">Vault Unavailable</h3>
+                            <p className="text-zinc-400 mb-6">
+                                {isExpired ? "This vault has expired." : "This vault is no longer active."}
+                            </p>
+                            <Link href="/dashboard">
+                                <button className="rounded-lg border border-zinc-700 px-6 py-2 text-white hover:bg-zinc-800">
+                                    Back to Dashboard
+                                </button>
+                            </Link>
                         </div>
                     ) : (
                         <div className="rounded-2xl border border-zinc-800 bg-card p-6">
-                            <h3 className="mb-4 text-xl font-bold text-white">Stake to Participate</h3>
+                            <h3 className="mb-4 text-xl font-bold text-white">Stake to Join</h3>
 
                             <div className="mb-6 rounded-lg border border-yellow-900 bg-yellow-900/10 p-4">
                                 <p className="text-sm text-yellow-500">
-                                    ⚠️ You must stake <strong>exactly {formatEther(taskInfo.stakeAmount)} ETH</strong> to join this task.
-                                    Complete before deadline for full refund, or face 10% penalty!
+                                    ⚠️ You must stake <strong>exactly {stakeAmount || "???"} ETH</strong> to join.
+                                    Funds are returned upon verified completion.
                                 </p>
                             </div>
 
@@ -258,18 +191,13 @@ export default function JoinTaskPage() {
                                 <div className="text-center py-8">
                                     <p className="text-zinc-400 mb-4">Please connect your wallet to stake</p>
                                 </div>
-                            ) : hasExpired ? (
-                                <div className="text-center py-8">
-                                    <Clock className="mx-auto mb-4 h-12 w-12 text-zinc-600" />
-                                    <p className="text-zinc-400">This task has expired</p>
-                                </div>
                             ) : (
                                 <button
                                     onClick={handleStake}
-                                    disabled={isPending || isConfirming}
+                                    disabled={isPending}
                                     className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary py-4 text-lg font-bold text-primary-foreground transition-all hover:bg-yellow-400 disabled:opacity-50"
                                 >
-                                    {isPending || isConfirming ? (
+                                    {isPending ? (
                                         <>
                                             <Loader2 className="h-5 w-5 animate-spin" />
                                             Staking...
@@ -277,7 +205,7 @@ export default function JoinTaskPage() {
                                     ) : (
                                         <>
                                             <Coins className="h-5 w-5" />
-                                            Stake {formatEther(taskInfo.stakeAmount)} ETH
+                                            Stake {stakeAmount} ETH
                                         </>
                                     )}
                                 </button>

@@ -2,15 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, usePublicClient } from "wagmi";
+import { useAccount, useWaitForTransactionReceipt, usePublicClient } from "wagmi";
 import { parseEther, decodeEventLog, isAddress } from "viem";
 import toast from "react-hot-toast";
-import { motion } from "framer-motion";
 import { ArrowLeft, Plus, X, Loader2, CheckCircle, Link2 } from "lucide-react";
 import Link from "next/link";
 import TimeUnitSelector, { TIME_UNITS, type TimeUnit } from "@/components/TimeUnitSelector";
 import InviteLink from "@/components/InviteLink";
-import { SAVINGSVAULT_ADDRESS, SAVINGSVAULT_ABI } from "@/lib/contracts-new";
+import SafetyRulesCard from "@/components/SafetyRulesCard";
+import { GOALVAULT_ABI } from "@/lib/contracts";
+import { useCreateVault } from "@/lib/hooks/useGoalVault";
 
 interface Member {
     address: string;
@@ -19,7 +20,7 @@ interface Member {
 
 export default function CreateSavingsPage() {
     const router = useRouter();
-    const { address, isConnected } = useAccount();
+    const { isConnected } = useAccount();
     const publicClient = usePublicClient();
 
     const [vaultName, setVaultName] = useState("");
@@ -29,10 +30,10 @@ export default function CreateSavingsPage() {
     const [timeUnit, setTimeUnit] = useState<TimeUnit>("days");
     const [members, setMembers] = useState<Member[]>([{ address: "", name: "" }]);
 
-    const [inviteLinks, setInviteLinks] = useState<Array<{ memberAddress: string; inviteCode: string; memberName: string }>>([]);
+    const [inviteLinks, setInviteLinks] = useState<Array<{ memberAddress: string; inviteCode: string; memberName: string; queryParams?: Record<string, string> }>>([]);
 
-    const { writeContract, data: hash, isPending, error } = useWriteContract();
-    const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
+    const { createVault, isPending, isSuccess, hash, error } = useCreateVault();
+    // note: useCreateVault already handles the writeContract call
 
     const addMember = () => {
         setMembers([...members, { address: "", name: "" }]);
@@ -57,11 +58,11 @@ export default function CreateSavingsPage() {
                 try {
                     const receipt = await publicClient.waitForTransactionReceipt({ hash });
 
-                    const invitedEvents = receipt.logs
+                    const createdEvents = receipt.logs
                         .map(log => {
                             try {
                                 return decodeEventLog({
-                                    abi: SAVINGSVAULT_ABI,
+                                    abi: GOALVAULT_ABI,
                                     data: log.data,
                                     topics: log.topics,
                                 });
@@ -69,23 +70,38 @@ export default function CreateSavingsPage() {
                                 return null;
                             }
                         })
-                        .filter(event => event && event.eventName === 'MemberInvited');
+                        .filter(event => event && event.eventName === 'VaultCreated');
 
-                    const links = invitedEvents.map((event: any, index) => ({
-                        memberAddress: event.args.member,
-                        memberName: members.find(m => m.address.toLowerCase() === event.args.member.toLowerCase())?.name || `Member ${index + 1}`,
-                        inviteCode: event.args.inviteCode
-                    }));
+                    if (createdEvents.length > 0 && createdEvents[0]) {
+                        const args = createdEvents[0].args as { vaultId: bigint };
+                        const vaultId = args.vaultId;
 
-                    setInviteLinks(links);
+                        // Suggest equal split for savings
+                        const splitAmount = members.length > 0
+                            ? (Number(savingsGoal) / members.length).toFixed(4)
+                            : "0";
+
+                        // Generate links for each member based on Vault ID
+                        const links = members.map((m, i) => ({
+                            memberAddress: m.address,
+                            memberName: m.name || `Member ${i + 1}`,
+                            inviteCode: vaultId.toString(),
+                            queryParams: {
+                                invitee: m.address,
+                                amount: splitAmount
+                            }
+                        }));
+                        setInviteLinks(links);
+                    }
+
                 } catch (error) {
-                    console.error("Error fetching invite codes:", error);
+                    console.error("Error fetching vault id:", error);
                 }
             };
 
             fetchInviteCodes();
         }
-    }, [isSuccess, hash, publicClient, members]);
+    }, [isSuccess, hash, publicClient, members, savingsGoal]);
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -101,32 +117,28 @@ export default function CreateSavingsPage() {
         }
 
         const validMembers = members.filter(m => m.address.trim() !== "");
+        // GoalVault doesn't strictly need members array at creation if we just share link, 
+        // but user workflow expects adding members.
+        // We will just use these for generating the "invite list" locally.
+
         if (validMembers.length === 0) {
-            toast.error("Add at least one member!");
+            toast.error("Add at least one member to invite!");
             return;
         }
 
+        // 0 tasks for Savings Vault
         const durationInSeconds = durationValue * TIME_UNITS[timeUnit];
-        const goalInWei = parseEther(savingsGoal);
+        const memberAddresses = validMembers.map(m => m.address);
 
-        try {
-            writeContract({
-                address: SAVINGSVAULT_ADDRESS,
-                abi: SAVINGSVAULT_ABI,
-                functionName: "createVault",
-                args: [
-                    vaultName,
-                    goalInWei,
-                    BigInt(durationInSeconds),
-                    payoutAddress as `0x${string}`,
-                    validMembers.map(m => m.address as `0x${string}`)
-                ]
-            });
-
-            toast.loading("Creating savings vault...");
-        } catch (error: any) {
-            toast.error(error.message || "Failed to create vault");
-        }
+        await createVault(
+            vaultName,
+            savingsGoal,
+            durationInSeconds,
+            0, // requiredTasksPerMember
+            [], // taskDescriptions
+            payoutAddress,
+            memberAddresses // Allowed members
+        );
     };
 
     useEffect(() => {
@@ -167,7 +179,7 @@ export default function CreateSavingsPage() {
                                 placeholder="e.g., Team Trip Fund 2025"
                                 className="w-full rounded-lg mt-3 border border-zinc-800 bg-zinc-900 px-4 py-3 text-white placeholder-zinc-600 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                                 required
-                                disabled={isPending || isConfirming}
+                                disabled={isPending}
                             />
                         </div>
 
@@ -181,7 +193,7 @@ export default function CreateSavingsPage() {
                                 placeholder="1.0"
                                 className="w-full rounded-lg mt-3 border border-zinc-800 bg-zinc-900 px-4 py-3 text-white placeholder-zinc-600 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                                 required
-                                disabled={isPending || isConfirming}
+                                disabled={isPending}
                             />
                             <p className="text-xs text-zinc-500">Total amount you want to save together</p>
                         </div>
@@ -195,7 +207,7 @@ export default function CreateSavingsPage() {
                                 placeholder="0x... where funds go if goal is met"
                                 className="w-full rounded-lg mt-3 border border-zinc-800 bg-zinc-900 px-4 py-3 text-white placeholder-zinc-600 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                                 required
-                                disabled={isPending || isConfirming}
+                                disabled={isPending}
                             />
                             <p className="text-xs text-zinc-500">Where funds will be sent if goal is reached</p>
                         </div>
@@ -205,12 +217,12 @@ export default function CreateSavingsPage() {
                             unit={timeUnit}
                             onValueChange={setDurationValue}
                             onUnitChange={setTimeUnit}
-                            disabled={isPending || isConfirming}
+                            disabled={isPending}
                         />
 
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-zinc-300">Team Members</label>
-                            <p className="text-xs text-zinc-500 mb-3">Add members who will receive unique invite links</p>
+                            <p className="text-xs text-zinc-500 mb-3">Add members to generate invite links for them</p>
 
                             <div className="space-y-3">
                                 {members.map((member, index) => (
@@ -221,7 +233,7 @@ export default function CreateSavingsPage() {
                                             onChange={(e) => updateMember(index, 'name', e.target.value)}
                                             placeholder="Name (optional)"
                                             className="w-32 rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-white placeholder-zinc-600 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary text-sm"
-                                            disabled={isPending || isConfirming}
+                                            disabled={isPending}
                                         />
                                         <input
                                             type="text"
@@ -230,14 +242,14 @@ export default function CreateSavingsPage() {
                                             placeholder="0x... wallet address"
                                             className="flex-1 rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-white placeholder-zinc-600 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                                             required
-                                            disabled={isPending || isConfirming}
+                                            disabled={isPending}
                                         />
                                         {members.length > 1 && (
                                             <button
                                                 type="button"
                                                 onClick={() => removeMember(index)}
                                                 className="flex h-[50px] w-[50px] items-center justify-center rounded-lg border border-zinc-800 text-zinc-500 hover:border-red-900 hover:bg-red-900/20 hover:text-red-500"
-                                                disabled={isPending || isConfirming}
+                                                disabled={isPending}
                                             >
                                                 <X className="h-5 w-5" />
                                             </button>
@@ -250,7 +262,7 @@ export default function CreateSavingsPage() {
                                 type="button"
                                 onClick={addMember}
                                 className="mt-2 text-sm font-medium text-primary hover:text-yellow-400 hover:underline"
-                                disabled={isPending || isConfirming}
+                                disabled={isPending}
                             >
                                 + Add another member
                             </button>
@@ -259,16 +271,20 @@ export default function CreateSavingsPage() {
                         <div className="rounded-lg border border-green-900 bg-green-900/10 p-4">
                             <p className="text-sm text-green-500">
                                 💰 <strong>Note:</strong> Members can contribute any amount.
-                                Funds are locked until deadline. Goal met = sent to payout address. Goal not met = refunded with 10% penalty.
+                                Funds are locked until deadline. Goal met = sent to payout address. Goal not met = refunded.
                             </p>
                         </div>
 
+                        {savingsGoal && parseFloat(savingsGoal) > 0 && (
+                            <SafetyRulesCard type="savings" stakeAmount={savingsGoal} />
+                        )}
+
                         <button
                             type="submit"
-                            disabled={isPending || isConfirming}
+                            disabled={isPending}
                             className="w-full flex items-center justify-center gap-2 rounded-xl bg-green-600 py-4 text-lg font-bold text-white transition-all hover:bg-green-700 disabled:opacity-50"
                         >
-                            {isPending || isConfirming ? (
+                            {isPending ? (
                                 <>
                                     <Loader2 className="h-5 w-5 animate-spin" />
                                     Creating Vault...
@@ -288,7 +304,7 @@ export default function CreateSavingsPage() {
                                 <CheckCircle className="h-6 w-6 text-green-500" />
                                 <div>
                                     <h3 className="text-lg font-bold text-white">Savings Vault Created!</h3>
-                                    <p className="text-sm text-green-400">Share these unique invite links with your team</p>
+                                    <p className="text-sm text-green-400">Share this link with your team to join.</p>
                                 </div>
                             </div>
                         </div>
@@ -306,10 +322,12 @@ export default function CreateSavingsPage() {
                                 {inviteLinks.map((link, index) => (
                                     <InviteLink
                                         key={index}
+                                        // Use Vault ID as the "code" so the link is /vault/[id]
                                         inviteCode={link.inviteCode}
                                         memberAddress={link.memberAddress}
                                         memberName={link.memberName}
                                         type="savings"
+                                        queryParams={link.queryParams}
                                     />
                                 ))}
                             </div>
@@ -333,6 +351,7 @@ export default function CreateSavingsPage() {
                                     Create Another
                                 </button>
                             </div>
+
                         </div>
                     </div>
                 )}

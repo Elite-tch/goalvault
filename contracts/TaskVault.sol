@@ -234,6 +234,26 @@ contract TaskVault {
         }
     }
     
+    /**
+     * @notice Emergency refund if funds are stuck > 30 days past deadline
+     * @param _taskId Task ID
+     */
+    function emergencyRefund(uint256 _taskId) external taskExists(_taskId) {
+        Task storage task = tasks[_taskId];
+        require(block.timestamp > task.deadline + 30 days, "Too early for emergency refund");
+        
+        Member storage member = task.members[msg.sender];
+        uint256 amount = member.stakedAmount;
+        require(amount > 0, "No funds to refund");
+        
+        member.stakedAmount = 0;
+        
+        (bool sent, ) = msg.sender.call{value: amount}("");
+        require(sent, "Refund failed");
+        
+        emit TaskFailed(_taskId, msg.sender, amount, 0); // Reuse event, 0 penalty
+    }
+
     // ============ View Functions ============
     
     function getTask(uint256 _taskId) external view returns (

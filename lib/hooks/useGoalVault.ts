@@ -3,6 +3,8 @@
 import { useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { GOALVAULT_ADDRESS, GOALVAULT_ABI, type Vault, type Task } from "../contracts";
 import { parseEther, formatEther } from "viem";
+import toast from "react-hot-toast";
+import { useEffect } from "react";
 
 
 // Hook to get vault counter
@@ -80,6 +82,27 @@ export function useMemberTask(vaultId: bigint | undefined, member: string | unde
     };
 }
 
+// Hook to check if user has voted
+export function useHasUserVoted(vaultId: bigint | undefined, member: string | undefined, taskId: bigint | undefined, voter: string | undefined) {
+    const { data, isLoading, error, refetch } = useReadContract({
+        address: GOALVAULT_ADDRESS,
+        abi: GOALVAULT_ABI,
+        functionName: "hasUserVoted",
+        args: vaultId && member && taskId !== undefined && voter ?
+            [vaultId, member as `0x${string}`, taskId, voter as `0x${string}`] : undefined,
+        query: {
+            enabled: !!vaultId && !!member && taskId !== undefined && !!voter,
+        },
+    });
+
+    return {
+        hasVoted: data as boolean | undefined,
+        isLoading,
+        error,
+        refetch,
+    };
+}
+
 // Hook to check if funds can be released
 export function useCanReleaseFunds(vaultId: bigint | undefined) {
     const { data, isLoading, error, refetch } = useReadContract({
@@ -108,9 +131,12 @@ export function useCreateVault() {
     const createVault = async (
         name: string,
         financialGoal: string,
-        durationInDays: number,
+        duration: number,
         requiredTasksPerMember: number,
-        taskDescriptions: string[]
+        taskDescriptions: string[],
+        payoutAddress: string = "0x0000000000000000000000000000000000000000",
+        allowedMembers: string[] = [],
+        specificTasks: string[] = []
     ) => {
         const goalInWei = parseEther(financialGoal);
 
@@ -118,7 +144,16 @@ export function useCreateVault() {
             address: GOALVAULT_ADDRESS,
             abi: GOALVAULT_ABI,
             functionName: "createVault",
-            args: [name, goalInWei, BigInt(durationInDays), BigInt(requiredTasksPerMember), taskDescriptions],
+            args: [
+                name,
+                goalInWei,
+                BigInt(duration),
+                BigInt(requiredTasksPerMember),
+                taskDescriptions,
+                payoutAddress as `0x${string}`,
+                allowedMembers as `0x${string}`[],
+                specificTasks
+            ],
         });
     };
 
@@ -203,22 +238,38 @@ export function useVerifyTask() {
     };
 }
 
-// Hook to release funds
-export function useReleaseFunds() {
+// Hook to finalize a vault
+export function useFinalizeVault() {
     const { writeContract, data: hash, isPending, error } = useWriteContract();
     const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
 
-    const releaseFunds = async (vaultId: bigint) => {
+    const finalizeVault = async (vaultId: bigint) => {
+        toast.loading("Finalizing Vault...");
         writeContract({
             address: GOALVAULT_ADDRESS,
             abi: GOALVAULT_ABI,
-            functionName: "releaseFunds",
+            functionName: "finalizeVault",
             args: [vaultId],
         });
     };
 
+    useEffect(() => {
+        if (isSuccess) {
+            toast.dismiss();
+            toast.success("Vault Finalized & Settled!");
+        }
+    }, [isSuccess]);
+
+    useEffect(() => {
+        if (error) {
+            console.error("Finalize error:", error);
+            toast.dismiss();
+            toast.error("Failed to finalize vault: " + (error as any).shortMessage || error.message);
+        }
+    }, [error]);
+
     return {
-        releaseFunds,
+        finalizeVault,
         isPending: isPending || isConfirming,
         isSuccess,
         hash,
@@ -247,4 +298,5 @@ export function useCancelVault() {
         hash,
         error,
     };
+
 }

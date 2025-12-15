@@ -1,31 +1,22 @@
 "use client";
 
-import { useAccount, useReadContract } from "wagmi";
+import { useState } from "react";
+import { useAccount } from "wagmi";
 import { motion } from "framer-motion";
-import { Target, Loader2, PlusCircle, CheckSquare, PiggyBank } from "lucide-react";
+import { Target, Loader2, PlusCircle, CheckSquare, PiggyBank, LayoutGrid } from "lucide-react";
 import Link from "next/link";
-import { TASKVAULT_ADDRESS, TASKVAULT_ABI, SAVINGSVAULT_ADDRESS, SAVINGSVAULT_ABI } from "@/lib/contracts-new";
 import { formatEther } from "viem";
+import CountdownTimer from "@/components/CountdownTimer";
+import { useVaultCounter, useVault } from "@/lib/hooks/useGoalVault";
+import { VaultStatus } from "@/lib/contracts";
 
 export default function DashboardPage() {
     const { address, isConnected } = useAccount();
+    const [activeTab, setActiveTab] = useState<"tasks" | "savings">("tasks");
 
-    // Read task counter
-    const { data: taskCount } = useReadContract({
-        address: TASKVAULT_ADDRESS,
-        abi: TASKVAULT_ABI,
-        functionName: "taskCounter",
-    });
-
-    // Read savings vault counter
-    const { data: vaultCount } = useReadContract({
-        address: SAVINGSVAULT_ADDRESS,
-        abi: SAVINGSVAULT_ABI,
-        functionName: "vaultCounter",
-    });
-
-    const totalTasks = Number(taskCount || 0);
-    const totalVaults = Number(vaultCount || 0);
+    // Read total vault count from unified contract
+    const { vaultCounter, isLoading } = useVaultCounter();
+    const totalVaults = Number(vaultCounter || 0);
 
     if (!isConnected) {
         return (
@@ -46,124 +37,60 @@ export default function DashboardPage() {
                 <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <div>
                         <h1 className="mb-2 text-3xl font-bold text-white">Dashboard</h1>
-                        <p className="text-zinc-400">Manage your tasks and savings vaults</p>
+                        <p className="text-zinc-400">Manage your commitments</p>
                     </div>
                     <div className="flex flex-wrap gap-3">
                         <Link href="/create/task">
-                            <motion.button
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                                className="flex items-center gap-2 rounded-xl bg-primary px-6 py-3 font-bold text-primary-foreground transition-colors hover:bg-yellow-400"
-                            >
+                            <button className="flex items-center gap-2 rounded-xl bg-primary px-6 py-3 font-bold text-primary-foreground transition-colors hover:bg-yellow-400">
                                 <CheckSquare className="h-5 w-5" />
                                 Create Task
-                            </motion.button>
+                            </button>
                         </Link>
                         <Link href="/create/savings">
-                            <motion.button
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                                className="flex items-center gap-2 rounded-xl bg-green-600 px-6 py-3 font-bold text-white transition-colors hover:bg-green-700"
-                            >
+                            <button className="flex items-center gap-2 rounded-xl bg-green-600 px-6 py-3 font-bold text-white transition-colors hover:bg-green-700">
                                 <PiggyBank className="h-5 w-5" />
                                 Create Savings
-                            </motion.button>
+                            </button>
                         </Link>
                     </div>
                 </div>
 
-                {/* Stats */}
-                <div className="mb-8 grid gap-6 md:grid-cols-2">
-                    <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-primary/10 to-transparent p-6">
-                        <div className="mb-2 flex items-center gap-3">
-                            <div className="rounded-lg bg-primary/20 p-3">
-                                <CheckSquare className="h-6 w-6 text-primary" />
-                            </div>
-                            <div>
-                                <p className="text-sm text-zinc-400">Total Tasks</p>
-                                <p className="text-3xl font-bold text-white">{totalTasks}</p>
-                            </div>
-                        </div>
-                        <p className="text-sm text-zinc-500">Active task accountability vaults</p>
-                    </div>
-
-                    <div className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-green-500/10 to-transparent p-6">
-                        <div className="mb-2 flex items-center gap-3">
-                            <div className="rounded-lg bg-green-500/20 p-3">
-                                <PiggyBank className="h-6 w-6 text-green-500" />
-                            </div>
-                            <div>
-                                <p className="text-sm text-zinc-400">Total Savings</p>
-                                <p className="text-3xl font-bold text-white">{totalVaults}</p>
-                            </div>
-                        </div>
-                        <p className="text-sm text-zinc-500">Active group savings vaults</p>
-                    </div>
+                {/* Tabs */}
+                <div className="mb-8 flex space-x-4 border-b border-zinc-800">
+                    <button
+                        onClick={() => setActiveTab("tasks")}
+                        className={`flex items-center gap-2 border-b-2 px-6 py-3 font-medium transition-colors ${activeTab === "tasks"
+                            ? "border-primary text-primary"
+                            : "border-transparent text-zinc-400 hover:text-white"
+                            }`}
+                    >
+                        <CheckSquare className="h-5 w-5" />
+                        My Tasks
+                    </button>
+                    <button
+                        onClick={() => setActiveTab("savings")}
+                        className={`flex items-center gap-2 border-b-2 px-6 py-3 font-medium transition-colors ${activeTab === "savings"
+                            ? "border-green-500 text-green-500"
+                            : "border-transparent text-zinc-400 hover:text-white"
+                            }`}
+                    >
+                        <PiggyBank className="h-5 w-5" />
+                        My Savings
+                    </button>
                 </div>
 
-                {/* Tasks Section */}
-                <div className="mb-8">
-                    <div className="mb-4 flex items-center justify-between">
-                        <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                            <CheckSquare className="h-6 w-6 text-primary" />
-                            My Tasks
-                        </h2>
-                        <Link href="/create/task" className="text-sm text-primary hover:underline">
-                            Create New →
-                        </Link>
-                    </div>
-
-                    {totalTasks === 0 ? (
-                        <div className="rounded-2xl border border-zinc-800 bg-card p-12 text-center">
-                            <CheckSquare className="mx-auto mb-4 h-12 w-12 text-zinc-600" />
-                            <h3 className="mb-2 text-xl font-bold text-white">No Tasks Yet</h3>
-                            <p className="mb-6 text-zinc-400">Create your first task accountability vault</p>
-                            <Link href="/create/task">
-                                <button className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 font-bold text-primary-foreground hover:bg-yellow-400">
-                                    <PlusCircle className="h-5 w-5" />
-                                    Create Task
-                                </button>
-                            </Link>
+                {/* Content */}
+                <div className="min-h-[300px]">
+                    {isLoading ? (
+                        <div className="flex justify-center py-12">
+                            <Loader2 className="h-8 w-8 animate-spin text-zinc-500" />
                         </div>
                     ) : (
-                        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                            {Array.from({ length: totalTasks }, (_, i) => i + 1).map((taskId) => (
-                                <TaskCard key={taskId} taskId={BigInt(taskId)} />
-                            ))}
-                        </div>
-                    )}
-                </div>
-
-                {/* Savings Section */}
-                <div>
-                    <div className="mb-4 flex items-center justify-between">
-                        <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                            <PiggyBank className="h-6 w-6 text-green-500" />
-                            My Savings Vaults
-                        </h2>
-                        <Link href="/create/savings" className="text-sm text-green-500 hover:underline">
-                            Create New →
-                        </Link>
-                    </div>
-
-                    {totalVaults === 0 ? (
-                        <div className="rounded-2xl border border-zinc-800 bg-card p-12 text-center">
-                            <PiggyBank className="mx-auto mb-4 h-12 w-12 text-zinc-600" />
-                            <h3 className="mb-2 text-xl font-bold text-white">No Savings Vaults Yet</h3>
-                            <p className="mb-6 text-zinc-400">Create your first group savings vault</p>
-                            <Link href="/create/savings">
-                                <button className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-6 py-3 font-bold text-white hover:bg-green-700">
-                                    <PlusCircle className="h-5 w-5" />
-                                    Create Savings
-                                </button>
-                            </Link>
-                        </div>
-                    ) : (
-                        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                            {Array.from({ length: totalVaults }, (_, i) => i + 1).map((vaultId) => (
-                                <SavingsCard key={vaultId} vaultId={BigInt(vaultId)} />
-                            ))}
-                        </div>
+                        <VaultList
+                            totalVaults={totalVaults}
+                            currentAddress={address}
+                            type={activeTab}
+                        />
                     )}
                 </div>
             </div>
@@ -171,32 +98,83 @@ export default function DashboardPage() {
     );
 }
 
-// Task Card Component
-function TaskCard({ taskId }: { taskId: bigint }) {
-    const { data: task } = useReadContract({
-        address: TASKVAULT_ADDRESS,
-        abi: TASKVAULT_ABI,
-        functionName: "getTask",
-        args: [taskId],
-    });
+function VaultList({ totalVaults, currentAddress, type }: { totalVaults: number; currentAddress?: string, type: "tasks" | "savings" }) {
+    if (totalVaults === 0) return <EmptyState type={type === "tasks" ? "task" : "savings"} />;
 
-    if (!task) {
-        return (
-            <div className="rounded-2xl border border-zinc-800 bg-card p-6">
-                <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
-            </div>
-        );
-    }
-
-    const [id, description, creator, stakeAmount, deadline, isActive, memberCount] = task;
-    const now = BigInt(Math.floor(Date.now() / 1000));
-    const hasExpired = deadline < now;
+    // Iterate in reverse to show newest first
+    const vaultIds = Array.from({ length: totalVaults }, (_, i) => BigInt(totalVaults - i));
 
     return (
-        <Link href={`/task/${id}`}>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {vaultIds.map((vaultId) => (
+                <VaultCardWrapper
+                    key={vaultId.toString()}
+                    vaultId={vaultId}
+                    currentAddress={currentAddress}
+                    type={type}
+                />
+            ))}
+        </div>
+    );
+}
+
+function VaultCardWrapper({ vaultId, currentAddress, type }: { vaultId: bigint; currentAddress?: string; type: "tasks" | "savings" }) {
+    const { vault, isLoading } = useVault(vaultId);
+
+    if (isLoading) return null; // Or a skeleton
+    if (!vault) return null;
+
+    // Filter by Creator
+    if (vault.creator.toLowerCase() !== currentAddress?.toLowerCase()) {
+        return null; // Don't render if not creator
+    }
+
+    // Determine Type
+    const isTaskVault = vault.requiredTasksPerMember > 0n;
+
+    // Filter by Tab Type using the derived property
+    if (type === "tasks" && !isTaskVault) return null;
+    if (type === "savings" && isTaskVault) return null;
+
+    // Render appropriate card
+    if (isTaskVault) {
+        return <TaskCard vault={vault} />;
+    } else {
+        return <SavingsCard vault={vault} />;
+    }
+}
+
+function EmptyState({ type }: { type: "task" | "savings" }) {
+    const isTask = type === "task";
+    return (
+        <div className="rounded-2xl border border-zinc-800 bg-card p-12 text-center">
+            {isTask ? (
+                <CheckSquare className="mx-auto mb-4 h-12 w-12 text-zinc-600" />
+            ) : (
+                <PiggyBank className="mx-auto mb-4 h-12 w-12 text-zinc-600" />
+            )}
+            <h3 className="mb-2 text-xl font-bold text-white">No {isTask ? "Tasks" : "Savings Vaults"} Yet</h3>
+            <p className="mb-6 text-zinc-400">Create your first {isTask ? "task accountability" : "group savings"} vault</p>
+            <Link href={isTask ? "/create/task" : "/create/savings"}>
+                <button className={`inline-flex items-center gap-2 rounded-xl px-6 py-3 font-bold text-white ${isTask ? "bg-primary text-primary-foreground" : "bg-green-600"}`}>
+                    <PlusCircle className="h-5 w-5" />
+                    Create {isTask ? "Task" : "Savings"}
+                </button>
+            </Link>
+        </div>
+    );
+}
+
+function TaskCard({ vault }: { vault: any }) {
+    const now = BigInt(Math.floor(Date.now() / 1000));
+    const hasExpired = vault.deadline < now;
+    const isActive = vault.status === VaultStatus.Active && !hasExpired;
+
+    return (
+        <Link href={`/vault/${vault.id}`}>
             <motion.div
                 whileHover={{ scale: 1.02 }}
-                className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-primary/5 to-transparent p-6 transition-all hover:border-primary/50 cursor-pointer"
+                className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-primary/5 to-transparent p-6 transition-all hover:border-primary/50 cursor-pointer h-full"
             >
                 <div className="mb-4 flex items-start justify-between">
                     <div className="rounded-lg bg-primary/20 p-2">
@@ -207,21 +185,32 @@ function TaskCard({ taskId }: { taskId: bigint }) {
                     </span>
                 </div>
 
-                <h3 className="mb-2 text-lg font-bold text-white line-clamp-2">{description}</h3>
+                <h3 className="mb-2 text-lg font-bold text-white line-clamp-2">{vault.name}</h3>
 
-                <div className="space-y-2 text-sm">
+                <div className="mb-4 flex items-center text-sm text-zinc-400">
+                    <CountdownTimer targetDate={vault.deadline} className="text-zinc-300" />
+                </div>
+
+                <div className="space-y-2 text-sm border-t border-zinc-800 pt-4">
                     <div className="flex justify-between">
-                        <span className="text-zinc-500">Stake:</span>
-                        <span className="font-medium text-primary">{formatEther(stakeAmount)} ETH</span>
+                        <span className="text-zinc-500">Goal:</span>
+                        <span className="font-medium text-primary">{formatEther(vault.financialGoal)} ETH</span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span className="text-zinc-500">Deposited:</span>
+                        <span className="text-white">{formatEther(vault.totalDeposited)} ETH</span>
                     </div>
                     <div className="flex justify-between">
                         <span className="text-zinc-500">Members:</span>
-                        <span className="text-white">{Number(memberCount)}</span>
+                        <span className="text-white">{Number(vault.memberCount)}</span>
                     </div>
                     <div className="flex justify-between">
                         <span className="text-zinc-500">Status:</span>
                         <span className={hasExpired ? 'text-red-500' : 'text-green-500'}>
-                            {hasExpired ? 'Expired' : 'Active'}
+                            {vault.status === VaultStatus.Completed ? 'Completed' :
+                                vault.status === VaultStatus.Failed ? 'Failed' :
+                                    vault.status === VaultStatus.Cancelled ? 'Cancelled' :
+                                        hasExpired ? 'Expired' : 'Active'}
                         </span>
                     </div>
                 </div>
@@ -230,33 +219,17 @@ function TaskCard({ taskId }: { taskId: bigint }) {
     );
 }
 
-// Savings Card Component
-function SavingsCard({ vaultId }: { vaultId: bigint }) {
-    const { data: vault } = useReadContract({
-        address: SAVINGSVAULT_ADDRESS,
-        abi: SAVINGSVAULT_ABI,
-        functionName: "getVault",
-        args: [vaultId],
-    });
-
-    if (!vault) {
-        return (
-            <div className="rounded-2xl border border-zinc-800 bg-card p-6">
-                <Loader2 className="mx-auto h-8 w-8 animate-spin text-green-500" />
-            </div>
-        );
-    }
-
-    const [id, name, creator, savingsGoal, totalContributed, deadline, payoutAddress, isActive, fundsReleased, memberCount] = vault;
-    const progress = savingsGoal > 0n ? Math.min(100, Number((totalContributed * 100n) / savingsGoal)) : 0;
+function SavingsCard({ vault }: { vault: any }) {
+    const progress = vault.financialGoal > 0n ? Math.min(100, Number((vault.totalDeposited * 100n) / vault.financialGoal)) : 0;
     const now = BigInt(Math.floor(Date.now() / 1000));
-    const hasExpired = deadline < now;
+    const hasExpired = vault.deadline < now;
+    const isActive = vault.status === VaultStatus.Active && !hasExpired;
 
     return (
-        <Link href={`/savings/${id}`}>
+        <Link href={`/vault/${vault.id}`}>
             <motion.div
                 whileHover={{ scale: 1.02 }}
-                className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-green-500/5 to-transparent p-6 transition-all hover:border-green-500/50 cursor-pointer"
+                className="rounded-2xl border border-zinc-800 bg-gradient-to-br from-green-500/5 to-transparent p-6 transition-all hover:border-green-500/50 cursor-pointer h-full"
             >
                 <div className="mb-4 flex items-start justify-between">
                     <div className="rounded-lg bg-green-500/20 p-2">
@@ -267,7 +240,11 @@ function SavingsCard({ vaultId }: { vaultId: bigint }) {
                     </span>
                 </div>
 
-                <h3 className="mb-3 text-lg font-bold text-white line-clamp-1">{name}</h3>
+                <h3 className="mb-3 text-lg font-bold text-white line-clamp-1">{vault.name}</h3>
+
+                <div className="mb-4 flex items-center text-sm text-zinc-400">
+                    <CountdownTimer targetDate={vault.deadline} className="text-zinc-300" />
+                </div>
 
                 <div className="mb-3">
                     <div className="mb-1 flex justify-between text-xs">
@@ -282,18 +259,18 @@ function SavingsCard({ vaultId }: { vaultId: bigint }) {
                     </div>
                 </div>
 
-                <div className="space-y-2 text-sm">
+                <div className="space-y-2 text-sm border-t border-zinc-800 pt-4">
                     <div className="flex justify-between">
                         <span className="text-zinc-500">Goal:</span>
-                        <span className="font-medium text-green-500">{formatEther(savingsGoal)} ETH</span>
+                        <span className="font-medium text-green-500">{formatEther(vault.financialGoal)} ETH</span>
                     </div>
                     <div className="flex justify-between">
                         <span className="text-zinc-500">Contributed:</span>
-                        <span className="text-white">{formatEther(totalContributed)} ETH</span>
+                        <span className="text-white">{formatEther(vault.totalDeposited)} ETH</span>
                     </div>
                     <div className="flex justify-between">
                         <span className="text-zinc-500">Members:</span>
-                        <span className="text-white">{Number(memberCount)}</span>
+                        <span className="text-white">{Number(vault.memberCount)}</span>
                     </div>
                 </div>
             </motion.div>

@@ -37,8 +37,8 @@ export default function CreateModePage() {
                             </p>
                             <ul className="mb-6 space-y-2 text-sm text-zinc-500">
                                 <li>✓ Fixed stake per task</li>
-                                <li>✓ Complete on time = full refund</li>
-                                <li>✓ Miss deadline = 10% penalty</li>
+                                <li>✓ Complete on time = instant unlock</li>
+                                <li>✓ Peer verification required</li>
                                 <li>✓ Unique invite links per member</li>
                             </ul>
                             <div className="flex items-center gap-2 text-primary font-medium group-hover:gap-3 transition-all">
@@ -63,8 +63,8 @@ export default function CreateModePage() {
                             <ul className="mb-6 space-y-2 text-sm text-zinc-500">
                                 <li>✓ Flexible contribution amounts</li>
                                 <li>✓ Funds locked until deadline</li>
-                                <li>✓ Goal met = payout to address</li>
-                                <li>✓ Goal not met = refund with penalty</li>
+                                <li>✓ Goal met = payout to target</li>
+                                <li>✓ Goal not met = Full refund</li>
                             </ul>
                             <div className="flex items-center gap-2 text-green-500 font-medium group-hover:gap-3 transition-all">
                                 Create Savings Vault <ArrowRight className="h-4 w-4" />
