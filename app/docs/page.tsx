@@ -60,14 +60,27 @@ const docsContent = {
                     <div>
                         <h3 className="mb-3 text-lg font-bold text-white">1. Savings Vault</h3>
                         <FormattedText>
-                            A collaborative savings vault where team members contribute funds toward a shared financial goal. Features include:
+                            A collaborative savings vault where team members contribute funds toward a shared financial goal.
+                            Choose between two modes:
                         </FormattedText>
-                        <div className="space-y-2">
+                        <div className="space-y-4">
+                            <div className="rounded-lg bg-zinc-900/50 p-4 border border-zinc-800">
+                                <p className="font-bold text-primary mb-2">Login Not Required (Public Fundraiser)</p>
+                                <BulletPoint><Bold>Usage:</Bold> Crowdfunding, Public Donations</BulletPoint>
+                                <BulletPoint><Bold>Access:</Bold> Anyone with the link can contribute</BulletPoint>
+                                <BulletPoint><Bold>Contributions:</Bold> Flexible amounts up to the Hard Cap</BulletPoint>
+                            </div>
+                            <div className="rounded-lg bg-zinc-900/50 p-4 border border-zinc-800">
+                                <p className="font-bold text-yellow-500 mb-2">Private Circle (Invite Only)</p>
+                                <BulletPoint><Bold>Usage:</Bold> Close friends, Team Savings</BulletPoint>
+                                <BulletPoint><Bold>Access:</Bold> Whitelisted members only</BulletPoint>
+                            </div>
+                        </div>
+                        <div className="mt-4 space-y-2">
+                            <p className="font-bold text-white text-sm mb-1">Common Features:</p>
                             <BulletPoint><Bold>Shared Goal:</Bold> Set a collective savings target</BulletPoint>
-                            <BulletPoint><Bold>Member Contributions:</Bold> Each member can contribute any amount up to the remaining goal</BulletPoint>
                             <BulletPoint><Bold>Deadline:</Bold> Set a time limit for reaching your goal</BulletPoint>
-                            <BulletPoint><Bold>Penalty System:</Bold> If the goal isn't met by the deadline, a 10% penalty is deducted from refunds</BulletPoint>
-                            <BulletPoint><Bold>Invite System:</Bold> Easy member onboarding with unique invite codes</BulletPoint>
+                            <BulletPoint><Bold>Penalty System:</Bold> If the goal isn't met by the deadline, a 10% penalty is deducted (sent to protocol owner)</BulletPoint>
                         </div>
                     </div>
 
@@ -137,9 +150,15 @@ const docsContent = {
                             </div>
 
                             <div>
+                                <p className="mb-2 font-bold text-white">Vault Type (Private vs Public)</p>
+                                <BulletPoint><Bold>Private Circle:</Bold> You must explicitly invite members by wallet address.</BulletPoint>
+                                <BulletPoint><Bold>Public Fundraiser:</Bold> Anyone with the link can contribute.</BulletPoint>
+                            </div>
+
+                            <div>
                                 <p className="mb-2 font-bold text-white">Payout Address (Required)</p>
                                 <BulletPoint>Enter the Ethereum address where funds will be sent when the goal is met</BulletPoint>
-                                <BulletPoint>This could be a project wallet, team treasury, or organizer's address</BulletPoint>
+                                <BulletPoint>This is the ONLY address that can receive the final funds</BulletPoint>
                                 <BulletPoint className="my-2 rounded-lg bg-zinc-900 p-3">⚠️ Double-check this address - it cannot be changed later!</BulletPoint>
                             </div>
                         </div>
@@ -157,12 +176,13 @@ const docsContent = {
                     </div>
 
                     <div>
-                        <h3 className="mb-3 text-lg font-bold text-white">Step 4: Share Invite Code</h3>
-                        <FormattedText>After creation, you'll receive a unique invite code. Share this code with team members so they can join:</FormattedText>
+                        <h3 className="mb-3 text-lg font-bold text-white">Step 4: Share Your Vault</h3>
+                        <FormattedText>
+                            Once created, you can share the link with your community or friends.
+                        </FormattedText>
                         <div className="space-y-2">
-                            <BulletPoint>Copy the invite link from the success dialog</BulletPoint>
-                            <BulletPoint>Share via messaging apps, email, or social media</BulletPoint>
-                            <BulletPoint>Members can join by visiting the provided link</BulletPoint>
+                            <BulletPoint>For <Bold>Public Vaults</Bold>: Post the link anywhere. Donors can contribute instantly.</BulletPoint>
+                            <BulletPoint>For <Bold>Private Vaults</Bold>: Only the wallet addresses you added can join.</BulletPoint>
                         </div>
                     </div>
 
@@ -179,9 +199,9 @@ const docsContent = {
                             <div className="rounded-lg bg-zinc-900 p-3 text-zinc-300">
                                 <p className="font-bold text-green-500">✅ Success Path:</p>
                                 <p>When the goal IS reached by the deadline:</p>
-                                <BulletPoint>All funds are automatically sent to the payout address</BulletPoint>
-                                <BulletPoint>Members cannot withdraw their individual contributions</BulletPoint>
-                                <BulletPoint>The vault is considered completed</BulletPoint>
+                                <BulletPoint>The Creator/Admin authorizes the payout</BulletPoint>
+                                <BulletPoint>Funds are sent directly to the designated Payout Address</BulletPoint>
+                                <BulletPoint>Individual donors do not "claim" funds; the project receives the lump sum</BulletPoint>
                             </div>
                         </div>
                     </div>
@@ -345,23 +365,15 @@ const docsContent = {
                             <div>
                                 <p className="mb-2 font-bold text-white">Step 3: Choose Your Contribution</p>
                                 <BulletPoint>Enter the amount you want to contribute (in ETH)</BulletPoint>
-                                <BulletPoint>You can contribute any amount up to the remaining goal</BulletPoint>
-                                <BulletPoint>Example: If goal is 1 ETH and 0.3 ETH is contributed, you can contribute up to 0.7 ETH</BulletPoint>
+                                <BulletPoint>For Public Vaults, you can contribute multiple times.</BulletPoint>
+                                <BulletPoint>You cannot exceed the total financial goal (Hard Cap).</BulletPoint>
                             </div>
 
                             <div>
                                 <p className="mb-2 font-bold text-white">Step 4: Confirm and Join</p>
-                                <NumberedItem number={1}>Click "Contribute to Goal"</NumberedItem>
+                                <NumberedItem number={1}>Click "Contribute"</NumberedItem>
                                 <NumberedItem number={2}>Approve the transaction in your wallet</NumberedItem>
                                 <NumberedItem number={3}>Wait for confirmation</NumberedItem>
-                                <NumberedItem number={4}>You're now a member!</NumberedItem>
-                            </div>
-
-                            <div>
-                                <p className="mb-2 font-bold text-white">Step 5: Additional Contributions</p>
-                                <BulletPoint>You can contribute more at any time</BulletPoint>
-                                <BulletPoint>Visit the same invite link</BulletPoint>
-                                <BulletPoint>Add additional funds toward the goal</BulletPoint>
                             </div>
                         </div>
                     </div>

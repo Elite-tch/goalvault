@@ -15,6 +15,7 @@ contract GoalVault {
         bool isCompleted;
         bool isVerified;
         uint256 voteCount;
+        string proof; // URL or text evidence
     }
     
     struct Member {
@@ -62,10 +63,18 @@ contract GoalVault {
     // Pre-assigned tasks for specific members (VaultId => Member => Descriptions)
     mapping(uint256 => mapping(address => string[])) private vaultMemberSpecificTasks;
     
+    // Owner for fee collection
+    //address public owner = 0xc9B5a83b5dC3aC7056856E69283d1DafF990bEC4;
+    address public owner = 0xc9B5A83b5Dc3aC7056856E69283d1DAFF990Bec4;
+
+    
     uint256 public constant PENALTY_PERCENT = 10; // 10% penalty
 
     // Peer Voting: VaultId => TargetMember => TaskId => Voter => HasVoted
     mapping(uint256 => mapping(address => mapping(uint256 => mapping(address => bool)))) public hasVoted;
+    
+    // Claim Tracking: VaultId => Member => HasClaimed
+    mapping(uint256 => mapping(address => bool)) public hasClaimed;
 
     // ============ Events ============
     
@@ -89,7 +98,8 @@ contract GoalVault {
         uint256 indexed vaultId, 
         address indexed member, 
         uint256 taskId,
-        string description
+        string description,
+        string proof
     );
     
     event TaskVerified(
@@ -197,7 +207,8 @@ contract GoalVault {
                     description: _taskDescriptions[i],
                     isCompleted: false,
                     isVerified: false,
-                    voteCount: 0
+                    voteCount: 0,
+                    proof: ""
                 });
             }
         }
@@ -212,57 +223,71 @@ contract GoalVault {
         vaultIsActive(_vaultId) 
     {
         require(msg.value > 0, "Must deposit ETH");
-        require(!vaultMembers[_vaultId][msg.sender].hasJoined, "Already joined");
         
         Vault storage vault = vaults[_vaultId];
         
+        // Hard Cap Check: Cannot exceed financial goal
+        require(vault.totalDeposited + msg.value <= vault.financialGoal, "Exceeds vault goal");
+
+        // Logic A: Private Vault (Whitelist Only)
         if (vault.isPrivate) {
-            require(isWhitelisted[_vaultId][msg.sender], "Not whitelisted");
+            require(isWhitelisted[_vaultId][msg.sender], "Private: Not whitelisted");
         }
         
-        vaultMembersList[_vaultId].push(msg.sender);
-        
-        Member storage member = vaultMembers[_vaultId][msg.sender];
-        member.wallet = msg.sender;
-        member.depositedAmount = msg.value;
-        member.hasJoined = true;
-        
-        // Initialize tasks if any
-        if (vault.requiredTasksPerMember > 0) {
-            // Check for specific pre-assigned tasks first
-            string[] memory specific = vaultMemberSpecificTasks[_vaultId][msg.sender];
+        // Note: For Public Vaults (Logic B), anyone can join as long as Hard Cap isn't Met.
+
+        // Check if already joined to avoid duplicate list entries
+        if (!vaultMembers[_vaultId][msg.sender].hasJoined) {
+            vaultMembersList[_vaultId].push(msg.sender);
+            vaultMembers[_vaultId][msg.sender].wallet = msg.sender;
+            vaultMembers[_vaultId][msg.sender].hasJoined = true;
+            vault.memberCount++;
             
-            if (specific.length > 0) {
-                // Use specific task
-                 memberTasks[_vaultId][msg.sender][0] = Task({
-                    description: specific[0],
-                    isCompleted: false,
-                    isVerified: false,
-                    voteCount: 0
-                });
-                member.taskIds.push(0);
-            } else {
-                // Use template tasks
-                for (uint256 i = 0; i < vault.requiredTasksPerMember; i++) {
-                    Task memory templateTask = memberTasks[_vaultId][address(0)][i];
-                    memberTasks[_vaultId][msg.sender][i] = Task({
-                        description: templateTask.description,
-                        isCompleted: false,
-                        isVerified: false,
-                        voteCount: 0
-                    });
-                    member.taskIds.push(i);
-                }
+            // Initialize tasks if any
+            if (vault.requiredTasksPerMember > 0) {
+                 // ... Task Init Logic ...
+                _initMemberTasks(_vaultId, msg.sender);
             }
         }
         
+        // Add to deposit (supports multiple deposits from same user)
+        vaultMembers[_vaultId][msg.sender].depositedAmount += msg.value;
         vault.totalDeposited += msg.value;
-        vault.memberCount++;
         
         emit MemberJoined(_vaultId, msg.sender, msg.value);
     }
+
+    function _initMemberTasks(uint256 _vaultId, address _member) internal {
+        Vault storage vault = vaults[_vaultId];
+        // Check for specific pre-assigned tasks first
+        string[] memory specific = vaultMemberSpecificTasks[_vaultId][_member];
+        
+        if (specific.length > 0) {
+            memberTasks[_vaultId][_member][0] = Task({
+                description: specific[0],
+                isCompleted: false,
+                isVerified: false,
+                voteCount: 0,
+                proof: ""
+            });
+            vaultMembers[_vaultId][_member].taskIds.push(0);
+        } else {
+            // Use template tasks
+            for (uint256 i = 0; i < vault.requiredTasksPerMember; i++) {
+                Task memory templateTask = memberTasks[_vaultId][address(0)][i];
+                memberTasks[_vaultId][_member][i] = Task({
+                    description: templateTask.description,
+                    isCompleted: false,
+                    isVerified: false,
+                    voteCount: 0,
+                    proof: ""
+                });
+                vaultMembers[_vaultId][_member].taskIds.push(i);
+            }
+        }
+    }
     
-    function completeTask(uint256 _vaultId, uint256 _taskId) 
+    function completeTask(uint256 _vaultId, uint256 _taskId, string memory _proof) 
         external 
         vaultExists(_vaultId)
         vaultIsActive(_vaultId)
@@ -272,8 +297,9 @@ contract GoalVault {
         require(!task.isCompleted, "Task already completed");
         
         task.isCompleted = true;
+        task.proof = _proof;
         
-        emit TaskCompleted(_vaultId, msg.sender, _taskId, task.description);
+        emit TaskCompleted(_vaultId, msg.sender, _taskId, task.description, _proof);
     }
     
     function verifyTask(uint256 _vaultId, address _member, uint256 _taskId)
@@ -291,63 +317,80 @@ contract GoalVault {
         task.voteCount++;
         
         Vault storage vault = vaults[_vaultId];
-        if (task.voteCount >= vault.memberCount) {
+        if (task.voteCount * 2 > vault.memberCount) {
             task.isVerified = true;
         }
         
         emit TaskVerified(_vaultId, _member, _taskId, msg.sender);
     }
 
-    function _settleVault(uint256 _vaultId) internal {
+    function claimFunds(uint256 _vaultId) external vaultExists(_vaultId) {
         Vault storage vault = vaults[_vaultId];
-        require(!vault.fundsReleased, "Already finalized");
+        require(vault.fundsReleased, "Claims not enabled yet");
+        require(!hasClaimed[_vaultId][msg.sender], "Already claimed");
         
-        vault.fundsReleased = true;
-        vault.isActive = false;
-        vault.status = VaultStatus.Completed;
+        Member storage member = vaultMembers[_vaultId][msg.sender];
+        uint256 amount = member.depositedAmount;
+        require(amount > 0, "No funds to claim");
 
-        address[] memory members = vaultMembersList[_vaultId];
-        
-        for (uint256 i = 0; i < members.length; i++) {
-            address payable memberAddr = payable(members[i]);
-            Member storage member = vaultMembers[_vaultId][memberAddr];
-            uint256 amount = member.depositedAmount;
-            
-            if (amount == 0) continue;
-            member.depositedAmount = 0; 
-            
-            bool allVerified = true;
-            if (vault.requiredTasksPerMember > 0) {
-                for (uint256 j = 0; j < vault.requiredTasksPerMember; j++) {
-                    if (!memberTasks[_vaultId][memberAddr][j].isVerified) {
-                        allVerified = false;
-                        break;
-                    }
+        // Mark as claimed (Reentrancy protection)
+        hasClaimed[_vaultId][msg.sender] = true;
+        member.depositedAmount = 0;
+
+        // 1. If financial goal NOT met -> Refund everyone 100%
+        if (vault.totalDeposited < vault.financialGoal) {
+             (bool sent, ) = payable(msg.sender).call{value: amount}("");
+             require(sent, "Refund failed");
+             emit MemberSettled(_vaultId, msg.sender, amount, msg.sender, false);
+             return;
+        }
+
+        // 2. Financial Goal Met -> Check Tasks
+        bool allVerified = true;
+        if (vault.requiredTasksPerMember > 0) {
+            for (uint256 j = 0; j < vault.requiredTasksPerMember; j++) {
+                if (!memberTasks[_vaultId][msg.sender][j].isVerified) {
+                    allVerified = false;
+                    break;
                 }
             }
-            
-            if (allVerified) {
-                address payable dest = vault.payoutAddress != address(0) ? payable(vault.payoutAddress) : memberAddr;
-                (bool sent, ) = dest.call{value: amount}("");
-                require(sent, "Transfer failed");
-                emit MemberSettled(_vaultId, memberAddr, amount, dest, true);
-            } else {
-                uint256 penalty = (amount * PENALTY_PERCENT) / 100;
-                uint256 refund = amount - penalty;
-                
-                (bool sent, ) = memberAddr.call{value: refund}("");
-                require(sent, "Refund failed");
-                emit MemberSettled(_vaultId, memberAddr, refund, memberAddr, false);
-            }
         }
-        
-        emit VaultFinalized(_vaultId);
+
+        // 3. Payout Logic
+        if (allVerified) {
+            // Success! Send to Payout Address (or self if 0x0)
+            address payable dest = vault.payoutAddress != address(0) ? payable(vault.payoutAddress) : payable(msg.sender);
+            (bool sent, ) = dest.call{value: amount}("");
+            require(sent, "Transfer failed");
+            emit MemberSettled(_vaultId, msg.sender, amount, dest, true);
+        } else {
+            // Failed tasks -> Apply Penalty
+            uint256 penalty = (amount * PENALTY_PERCENT) / 100;
+            uint256 refund = amount - penalty;
+            
+            // Refund remainder to user
+            (bool sent, ) = payable(msg.sender).call{value: refund}("");
+            require(sent, "Refund failed");
+            
+            // Penalty sent to Protocol Owner
+            (bool sentFee, ) = payable(owner).call{value: penalty}("");
+            require(sentFee, "Fee failed");
+            
+             emit MemberSettled(_vaultId, msg.sender, refund, msg.sender, false);
+        }
     }
     
     function finalizeVault(uint256 _vaultId) external vaultExists(_vaultId) {
         Vault storage vault = vaults[_vaultId];
         require(block.timestamp > vault.deadline, "Vault has not finished yet");
-        _settleVault(_vaultId);
+        require(!vault.fundsReleased, "Already finalized");
+        
+        // Just toggle the state. Actual payout happens via claimFunds()
+        vault.fundsReleased = true;
+        vault.isActive = false;
+        vault.status = VaultStatus.Completed;
+        
+        emit VaultFinalized(_vaultId);
     }
     
     function emergencyRefund(uint256 _vaultId) external vaultExists(_vaultId) {
@@ -410,6 +453,10 @@ contract GoalVault {
 
     function hasUserVoted(uint256 _vaultId, address _member, uint256 _taskId, address _voter) external view returns (bool) {
         return hasVoted[_vaultId][_member][_taskId][_voter];
+    }
+
+    function hasUserClaimed(uint256 _vaultId, address _member) external view returns (bool) {
+        return hasClaimed[_vaultId][_member];
     }
     
     receive() external payable {}

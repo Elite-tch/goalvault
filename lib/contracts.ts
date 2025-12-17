@@ -1,4 +1,4 @@
-export const GOALVAULT_ADDRESS = "0xd74a328bee213892470bb1ef64ec0c680c9a7e41" as const;
+export const GOALVAULT_ADDRESS = "0x5682d4e6460940d365417d3a4734f0b07dab2578" as const;
 
 export const GOALVAULT_ABI = [
     {
@@ -31,7 +31,8 @@ export const GOALVAULT_ABI = [
     {
         "inputs": [
             { "internalType": "uint256", "name": "_vaultId", "type": "uint256" },
-            { "internalType": "uint256", "name": "_taskId", "type": "uint256" }
+            { "internalType": "uint256", "name": "_taskId", "type": "uint256" },
+            { "internalType": "string", "name": "_proof", "type": "string" }
         ],
         "name": "completeTask",
         "outputs": [],
@@ -67,7 +68,8 @@ export const GOALVAULT_ABI = [
                     { "internalType": "string", "name": "description", "type": "string" },
                     { "internalType": "bool", "name": "isCompleted", "type": "bool" },
                     { "internalType": "bool", "name": "isVerified", "type": "bool" },
-                    { "internalType": "uint256", "name": "voteCount", "type": "uint256" }
+                    { "internalType": "uint256", "name": "voteCount", "type": "uint256" },
+                    { "internalType": "string", "name": "proof", "type": "string" }
                 ],
                 "internalType": "struct GoalVault.Task",
                 "name": "",
@@ -167,6 +169,25 @@ export const GOALVAULT_ABI = [
         "type": "function"
     },
     {
+        "inputs": [
+            { "internalType": "uint256", "name": "_vaultId", "type": "uint256" }
+        ],
+        "name": "claimFunds",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            { "internalType": "uint256", "name": "_vaultId", "type": "uint256" },
+            { "internalType": "address", "name": "_member", "type": "address" }
+        ],
+        "name": "hasUserClaimed",
+        "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
         "anonymous": false,
         "inputs": [
             { "indexed": true, "internalType": "uint256", "name": "vaultId", "type": "uint256" },
@@ -202,7 +223,8 @@ export const GOALVAULT_ABI = [
             { "indexed": true, "internalType": "uint256", "name": "vaultId", "type": "uint256" },
             { "indexed": true, "internalType": "address", "name": "member", "type": "address" },
             { "indexed": false, "internalType": "uint256", "name": "taskId", "type": "uint256" },
-            { "indexed": false, "internalType": "string", "name": "description", "type": "string" }
+            { "indexed": false, "internalType": "string", "name": "description", "type": "string" },
+            { "indexed": false, "internalType": "string", "name": "proof", "type": "string" }
         ],
         "name": "TaskCompleted",
         "type": "event"
@@ -286,6 +308,7 @@ export interface Task {
     isCompleted: boolean;
     isVerified: boolean;
     voteCount: bigint;
+    proof: string;
 }
 
 export interface Member {

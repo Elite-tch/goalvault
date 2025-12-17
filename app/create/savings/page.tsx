@@ -28,6 +28,7 @@ export default function CreateSavingsPage() {
     const [payoutAddress, setPayoutAddress] = useState("");
     const [durationValue, setDurationValue] = useState(30);
     const [timeUnit, setTimeUnit] = useState<TimeUnit>("days");
+    const [isPrivate, setIsPrivate] = useState(true); // Default to Private
     const [members, setMembers] = useState<Member[]>([{ address: "", name: "" }]);
 
     const [inviteLinks, setInviteLinks] = useState<Array<{ memberAddress: string; inviteCode: string; memberName: string; queryParams?: Record<string, string> }>>([]);
@@ -121,9 +122,12 @@ export default function CreateSavingsPage() {
         // but user workflow expects adding members.
         // We will just use these for generating the "invite list" locally.
 
-        if (validMembers.length === 0) {
-            toast.error("Add at least one member to invite!");
-            return;
+        // Only validate members if IS PRIVATE
+        if (isPrivate) {
+            if (validMembers.length === 0) {
+                toast.error("Add at least one member to invite for Private Vaults!");
+                return;
+            }
         }
 
         // 0 tasks for Savings Vault
@@ -137,7 +141,8 @@ export default function CreateSavingsPage() {
             0, // requiredTasksPerMember
             [], // taskDescriptions
             payoutAddress,
-            memberAddresses // Allowed members
+            memberAddresses, // Allowed members
+            isPrivate
         );
     };
 
@@ -221,57 +226,90 @@ export default function CreateSavingsPage() {
                         />
 
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-zinc-300">Team Members</label>
-                            <p className="text-xs text-zinc-500 mb-3">Add members to generate invite links for them</p>
-
-                            <div className="space-y-3">
-                                {members.map((member, index) => (
-                                    <div key={index} className="flex md:flex-row flex-col gap-2">
-                                        <input
-                                            type="text"
-                                            value={member.name}
-                                            onChange={(e) => updateMember(index, 'name', e.target.value)}
-                                            placeholder="Name (optional)"
-                                            className="w-32 rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-white placeholder-zinc-600 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary text-sm"
-                                            disabled={isPending}
-                                        />
-                                        <input
-                                            type="text"
-                                            value={member.address}
-                                            onChange={(e) => updateMember(index, 'address', e.target.value)}
-                                            placeholder="0x... wallet address"
-                                            className="flex-1 rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-white placeholder-zinc-600 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                                            required
-                                            disabled={isPending}
-                                        />
-                                        {members.length > 1 && (
-                                            <button
-                                                type="button"
-                                                onClick={() => removeMember(index)}
-                                                className="flex h-[50px] w-[50px] items-center justify-center rounded-lg border border-zinc-800 text-zinc-500 hover:border-red-900 hover:bg-red-900/20 hover:text-red-500"
-                                                disabled={isPending}
-                                            >
-                                                <X className="h-5 w-5" />
-                                            </button>
-                                        )}
+                            <label className="text-sm font-medium text-zinc-300">Vault Access</label>
+                            <div className="flex gap-4">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsPrivate(true)}
+                                    className={`flex-1 rounded-xl border p-4 text-left transition-all ${isPrivate
+                                        ? "border-primary bg-primary/10"
+                                        : "border-zinc-800 bg-zinc-900 hover:border-zinc-700"
+                                        }`}
+                                >
+                                    <div className="flex items-center gap-2 font-bold text-white mb-1">
+                                        🔒 Private Circle
                                     </div>
-                                ))}
+                                    <p className="text-xs text-zinc-500">Only people you explicitly invite can deposit. Good for friends & family.</p>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsPrivate(false)}
+                                    className={`flex-1 rounded-xl border p-4 text-left transition-all ${!isPrivate
+                                        ? "border-green-500 bg-green-500/10"
+                                        : "border-zinc-800 bg-zinc-900 hover:border-zinc-700"
+                                        }`}
+                                >
+                                    <div className="flex items-center gap-2 font-bold text-white mb-1">
+                                        🌍 Public Fundraiser
+                                    </div>
+                                    <p className="text-xs text-zinc-500">Anyone with the link can deposit (up to the Goal Limit). Good for crowdfunding.</p>
+                                </button>
                             </div>
-
-                            <button
-                                type="button"
-                                onClick={addMember}
-                                className="mt-2 text-sm font-medium text-primary hover:text-yellow-400 hover:underline"
-                                disabled={isPending}
-                            >
-                                + Add another member
-                            </button>
                         </div>
+
+                        {isPrivate && (
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-zinc-300">Team Members</label>
+                                <p className="text-xs text-zinc-500 mb-3">Add allowed wallets (Whitelist)</p>
+                                <div className="space-y-3">
+                                    {members.map((member, index) => (
+                                        <div key={index} className="flex md:flex-row flex-col gap-2">
+                                            <input
+                                                type="text"
+                                                value={member.name}
+                                                onChange={(e) => updateMember(index, 'name', e.target.value)}
+                                                placeholder="Name"
+                                                className="w-32 rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-white placeholder-zinc-600 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary text-sm"
+                                                disabled={isPending}
+                                            />
+                                            <input
+                                                type="text"
+                                                value={member.address}
+                                                onChange={(e) => updateMember(index, 'address', e.target.value)}
+                                                placeholder="0x... wallet address"
+                                                className="flex-1 rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-white placeholder-zinc-600 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                                                required
+                                                disabled={isPending}
+                                            />
+                                            {members.length > 1 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeMember(index)}
+                                                    className="flex h-[50px] w-[50px] items-center justify-center rounded-lg border border-zinc-800 text-zinc-500 hover:border-red-900 hover:bg-red-900/20 hover:text-red-500"
+                                                    disabled={isPending}
+                                                >
+                                                    <X className="h-5 w-5" />
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={addMember}
+                                    className="mt-2 text-sm font-medium text-primary hover:text-yellow-400 hover:underline"
+                                    disabled={isPending}
+                                >
+                                    + Add another member
+                                </button>
+                            </div>
+                        )}
 
                         <div className="rounded-lg border border-green-900 bg-green-900/10 p-4">
                             <p className="text-sm text-green-500">
-                                💰 <strong>Note:</strong> Members can contribute any amount.
-                                Funds are locked until deadline. Goal met = sent to payout address. Goal not met = refunded.
+                                💰 <strong>Note:</strong>
+                                {isPrivate ? " Members can contribute any amount up to the goal." : " Anyone can contribute."}
+                                Funds Locked. Goal Met = Payout to Target. Goal Missed = Refund (Minus 10% Protocol Fee).
                             </p>
                         </div>
 

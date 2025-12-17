@@ -205,10 +205,9 @@ export default function JoinSavingsPage() {
                                     <form onSubmit={handleContribute} className="space-y-3">
                                         <input
                                             type="number"
-                                            step="0.001"
-                                            min="0.001"
+                                            step="0.000000000000000001"
                                             value={contributionAmount}
-                                            onChange={(e) => setContributionAmount(e.target.value)}
+                                           onChange={(e) => setContributionAmount(e.target.value)}
                                             placeholder="Additional amount (ETH)"
                                             className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3 text-white placeholder-zinc-600 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
                                             required
@@ -243,12 +242,7 @@ export default function JoinSavingsPage() {
                         <div className="rounded-2xl border border-zinc-800 bg-card p-6">
                             <h3 className="mb-4 text-xl font-bold text-white">Make a Contribution</h3>
 
-                            <div className="mb-6 rounded-lg border border-green-900 bg-green-900/10 p-4">
-                                <p className="text-sm text-green-500">
-                                    💰 Contribute any amount. Goals met = Funds sent to target.
-                                    Goal missed = Full refund.
-                                </p>
-                            </div>
+                            {/* Information Banner Removed */}
 
                             {!isConnected ? (
                                 <div className="text-center py-8">
@@ -265,8 +259,8 @@ export default function JoinSavingsPage() {
                                         <label className="text-sm font-medium text-zinc-300">Contribution Amount (ETH)</label>
                                         <input
                                             type="number"
-                                            step="0.001"
-                                            min="0.001"
+                                             step="0.000000000000000001"
+                                           
                                             value={contributionAmount}
                                             onChange={(e) => setContributionAmount(e.target.value)}
                                             placeholder="0.1"

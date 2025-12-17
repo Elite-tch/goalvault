@@ -144,6 +144,7 @@ export default function CreateTaskPage() {
                 hasSpecificTasks ? [] : [taskDescription],
                 "0x0000000000000000000000000000000000000000",
                 memberAddresses,
+                true, // Task vaults are always private by default (whitelist needed for task assignment)
                 specificTasks
             );
         } catch (err: any) {

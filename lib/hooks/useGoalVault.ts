@@ -136,9 +136,11 @@ export function useCreateVault() {
         taskDescriptions: string[],
         payoutAddress: string = "0x0000000000000000000000000000000000000000",
         allowedMembers: string[] = [],
+        isPrivate: boolean = true, // Default true
         specificTasks: string[] = []
     ) => {
         const goalInWei = parseEther(financialGoal);
+        const effectiveAllowedMembers = isPrivate ? allowedMembers : [];
 
         writeContract({
             address: GOALVAULT_ADDRESS,
@@ -151,7 +153,7 @@ export function useCreateVault() {
                 BigInt(requiredTasksPerMember),
                 taskDescriptions,
                 payoutAddress as `0x${string}`,
-                allowedMembers as `0x${string}`[],
+                effectiveAllowedMembers as `0x${string}`[],
                 specificTasks
             ],
         });
@@ -197,12 +199,12 @@ export function useCompleteTask() {
     const { writeContract, data: hash, isPending, error } = useWriteContract();
     const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
 
-    const completeTask = async (vaultId: bigint, taskId: bigint) => {
+    const completeTask = async (vaultId: bigint, taskId: bigint, proofUrl: string) => {
         writeContract({
             address: GOALVAULT_ADDRESS,
             abi: GOALVAULT_ABI,
             functionName: "completeTask",
-            args: [vaultId, taskId],
+            args: [vaultId, taskId, proofUrl],
         });
     };
 
@@ -298,5 +300,47 @@ export function useCancelVault() {
         hash,
         error,
     };
+}
 
+// Hook to check if user has claimed
+export function useHasClaimed(vaultId: bigint | undefined, member: string | undefined) {
+    const { data, isLoading, error, refetch } = useReadContract({
+        address: GOALVAULT_ADDRESS,
+        abi: GOALVAULT_ABI,
+        functionName: "hasUserClaimed",
+        args: vaultId && member ? [vaultId, member as `0x${string}`] : undefined,
+        query: {
+            enabled: !!vaultId && !!member,
+        },
+    });
+
+    return {
+        hasClaimed: data as boolean | undefined,
+        isLoading,
+        error,
+        refetch
+    };
+}
+
+// Hook to claim funds
+export function useClaimFunds() {
+    const { writeContract, data: hash, isPending, error } = useWriteContract();
+    const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
+
+    const claimFunds = async (vaultId: bigint) => {
+        writeContract({
+            address: GOALVAULT_ADDRESS,
+            abi: GOALVAULT_ABI,
+            functionName: "claimFunds",
+            args: [vaultId],
+        });
+    };
+
+    return {
+        claimFunds,
+        isPending: isPending || isConfirming,
+        isSuccess,
+        hash,
+        error,
+    };
 }

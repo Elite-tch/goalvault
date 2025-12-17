@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { ArrowLeft, Users, CheckCircle, Clock, Wallet, Plus, Loader2, ExternalLink, AlertTriangle, RefreshCcw } from "lucide-react";
+import { ArrowLeft, Users, CheckCircle, Clock, Wallet, Plus, Loader2, ExternalLink, AlertTriangle, RefreshCcw, Link as LinkIcon } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import CertificateCard from "@/components/CertificateCard";
@@ -15,7 +15,9 @@ import {
     useCompleteTask,
     useVerifyTask,
     useCanReleaseFunds,
-    useFinalizeVault
+    useFinalizeVault,
+    useClaimFunds,
+    useHasClaimed
 } from "@/lib/hooks/useGoalVault";
 import { formatEther } from "viem";
 import { useState, useEffect } from "react";
@@ -35,18 +37,22 @@ export default function VaultDetailsPage() {
     const { completeTask, isPending: isCompletingTask } = useCompleteTask();
     const { verifyTask, isPending: isVerifyingTask } = useVerifyTask();
     const { finalizeVault, isPending: isFinalizing, isSuccess: isFinalizeSuccess, hash: finalizeHash } = useFinalizeVault();
+    const { claimFunds, isPending: isClaiming, isSuccess: isClaimSuccess, hash: claimHash } = useClaimFunds();
+    const { hasClaimed, refetch: refetchHasClaimed } = useHasClaimed(vaultId, address);
+
     // Get current user's task to check for certificate eligibility
     const { task: myTask } = useMemberTask(vaultId, address || "0x0000000000000000000000000000000000000000", 0n);
 
     useEffect(() => {
-        if (isFinalizeSuccess) {
+        if (isFinalizeSuccess || isClaimSuccess) {
             // Wait slightly for indexer
             const timer = setTimeout(() => {
                 refetchVault();
+                refetchHasClaimed();
             }, 2000);
             return () => clearTimeout(timer);
         }
-    }, [isFinalizeSuccess, refetchVault]);
+    }, [isFinalizeSuccess, isClaimSuccess, refetchVault, refetchHasClaimed]);
 
     const [depositAmount, setDepositAmount] = useState("");
 
@@ -103,9 +109,9 @@ export default function VaultDetailsPage() {
         }
     };
 
-    const handleCompleteTask = async (taskId: number) => {
+    const handleCompleteTask = async (taskId: number, proofUrl: string) => {
         try {
-            await completeTask(vaultId, BigInt(taskId));
+            await completeTask(vaultId, BigInt(taskId), proofUrl);
             setTimeout(() => refetchVault(), 2000);
         } catch (error) {
             console.error("Error completing task:", error);
@@ -126,6 +132,14 @@ export default function VaultDetailsPage() {
             await finalizeVault(vaultId);
         } catch (error) {
             console.error("Error finalizing:", error);
+        }
+    };
+
+    const handleClaimFunds = async () => {
+        try {
+            await claimFunds(vaultId);
+        } catch (error) {
+            console.error("Error claiming:", error);
         }
     };
 
@@ -226,44 +240,46 @@ export default function VaultDetailsPage() {
                                         </span>
                                     </p>
 
-                                    {(vault.fundsReleased || isFinalizeSuccess) ? (
-                                        <div className="rounded bg-green-500/10 border border-green-500/20 p-4">
-                                            <p className="font-bold text-green-500 flex items-center gap-2">
-                                                <CheckCircle className="h-5 w-5" />
-                                                Vault Finalized Successfully!
-                                            </p>
-                                            <p className="text-sm text-zinc-400 mt-1">
-                                                All funds have been distributed according to vault rules.
-                                            </p>
-                                            {finalizeHash && (
-                                                <a
-                                                    href={`https://sepolia.scrollscan.com/tx/${finalizeHash}`}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="mt-2 inline-flex items-center gap-1 text-primary hover:underline"
+                                    {/* Admin / Creator Controls for Payout */}
+                                    {(isCreator || vault.payoutAddress === address) && (
+                                        <>
+                                            {(!vault.fundsReleased && !isFinalizeSuccess) ? (
+                                                <button
+                                                    onClick={handleFinalizeVault}
+                                                    disabled={isFinalizing}
+                                                    className="flex w-fit items-center justify-center gap-2 rounded-lg bg-green-600 px-6 py-3 font-bold text-white transition-all hover:bg-green-700 disabled:opacity-50"
                                                 >
-                                                    View Settlement Transaction <ExternalLink className="h-3 w-3" />
-                                                </a>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <button
-                                            onClick={handleFinalizeVault}
-                                            disabled={isFinalizing}
-                                            className="flex items-center gap-2 rounded-lg bg-primary px-6 py-3 font-bold text-primary-foreground transition-all hover:bg-yellow-400 disabled:opacity-50"
-                                        >
-                                            {isFinalizing ? (
-                                                <>
-                                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                                    Finalizing...
-                                                </>
+                                                    {isFinalizing ? (
+                                                        <>
+                                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                                            Processing...
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Wallet className="h-4 w-4" />
+                                                            Authorize Payout
+                                                        </>
+                                                    )}
+                                                </button>
                                             ) : (
-                                                <>
-                                                    <RefreshCcw className="h-4 w-4" />
-                                                    Settle Vault & Distribute Funds
-                                                </>
+                                                <div className="rounded bg-green-500/10 border border-green-500/20 p-4 text-center w-full">
+                                                    <p className="font-bold text-green-500 flex items-center justify-center gap-2">
+                                                        <CheckCircle className="h-5 w-5" />
+                                                        Payout Authorized
+                                                    </p>
+                                                    <p className="text-sm text-zinc-400 mt-1">
+                                                        Funds have been released to the payout address.
+                                                    </p>
+                                                </div>
                                             )}
-                                        </button>
+                                        </>
+                                    )}
+
+                                    {/* Member View Only - No Claim Button */}
+                                    {!isCreator && vault.payoutAddress !== address && (
+                                        <div className="text-zinc-500 text-sm italic">
+                                            Waiting for Creator/Admin to authorize distribution.
+                                        </div>
                                     )}
                                 </div>
                             </div>
@@ -300,10 +316,12 @@ export default function VaultDetailsPage() {
                     </div>
                 )}
 
-                {/* Join Vault Section */}
-                {!isMember && vault.isActive && !isExpired && (
+                {/* Join / Deposit Section - Hide if Goal Met */}
+                {vault.isActive && !isExpired && progress < 100 && (
                     <div className="mb-8 rounded-2xl border border-zinc-800 bg-card p-6">
-                        <h2 className="mb-4 text-xl font-bold text-white">Join This Vault</h2>
+                        <h2 className="mb-4 text-xl font-bold text-white">
+                            {isMember ? "Contribute Funds" : "Join This Vault"}
+                        </h2>
                         <div className="flex gap-3">
                             <input
                                 type="number"
@@ -321,21 +339,37 @@ export default function VaultDetailsPage() {
                                 {isJoining ? (
                                     <>
                                         <Loader2 className="h-4 w-4 animate-spin" />
-                                        Joining...
+                                        {isMember ? "Depositing..." : "Joining..."}
                                     </>
                                 ) : (
                                     <>
                                         <Plus className="h-4 w-4" />
-                                        Join Vault
+                                        {isMember ? "Deposit More" : "Join Vault"}
                                     </>
                                 )}
                             </button>
                         </div>
-                        {Number(vault.requiredTasksPerMember) > 0 && (
+                        {Number(vault.requiredTasksPerMember) > 0 && !isMember && (
                             <p className="mt-2 text-xs text-zinc-500">
                                 You'll need to complete {vault.requiredTasksPerMember.toString()} tasks to unlock funds.
                             </p>
                         )}
+                        {Number(vault.requiredTasksPerMember) === 0 && (
+                            <p className="mt-2 text-xs text-zinc-500">
+                                You can contribute multiple times until the goal is reached.
+                            </p>
+                        )}
+                    </div>
+                )}
+
+                {/* Goal Reached Message */}
+                {progress >= 100 && vault.isActive && (
+                    <div className="mb-8 rounded-2xl border border-green-500/20 bg-green-500/10 p-6 flex items-center justify-between">
+                        <div>
+                            <h2 className="text-xl font-bold text-green-500">Goal Reached! 🎉</h2>
+                            <p className="text-zinc-400 text-sm mt-1">This vault is fully funded. No more deposits allow.</p>
+                        </div>
+                        <CheckCircle className="h-8 w-8 text-green-500" />
                     </div>
                 )}
 
@@ -350,7 +384,7 @@ export default function VaultDetailsPage() {
                                     vaultId={vaultId}
                                     memberAddress={address!}
                                     taskId={i}
-                                    onComplete={() => handleCompleteTask(i)}
+                                    onComplete={(proof: string) => handleCompleteTask(i, proof)}
                                     isCompletingTask={isCompletingTask}
                                 />
                             ))}
@@ -358,10 +392,10 @@ export default function VaultDetailsPage() {
                     </div>
                 )}
 
-                {/* Social Share for Members */}
-                {isMember && vault.isActive && !vault.fundsReleased && (
+                {/* Social Share (Tasks Only) */}
+                {isMember && vault.isActive && !vault.fundsReleased && Number(vault.requiredTasksPerMember) > 0 && (
                     <SocialShare
-                        type={Number(vault.requiredTasksPerMember) > 0 ? "task" : "savings"}
+                        type="task"
                         goalOrStake={formatEther(vault.financialGoal)}
                         description={vault.name}
                         vaultId={vaultId.toString()}
@@ -424,6 +458,8 @@ function StatCard({ label, value, subValue, icon }: { label: string; value: stri
 
 function TaskCard({ vaultId, memberAddress, taskId, onComplete, isCompletingTask }: any) {
     const { task, isLoading } = useMemberTask(vaultId, memberAddress, BigInt(taskId));
+    const [proof, setProof] = useState("");
+    const [isExpanded, setIsExpanded] = useState(false);
 
     if (isLoading) {
         return (
@@ -436,31 +472,59 @@ function TaskCard({ vaultId, memberAddress, taskId, onComplete, isCompletingTask
     if (!task) return null;
 
     return (
-        <div className="flex items-center justify-between rounded-lg border border-zinc-800 bg-zinc-900/50 p-4">
-            <div className="flex items-center gap-3">
-                {task.isVerified ? (
-                    <CheckCircle className="h-5 w-5 text-green-500" />
-                ) : task.isCompleted ? (
-                    <Clock className="h-5 w-5 text-yellow-500" />
-                ) : (
-                    <div className="h-5 w-5 rounded-full border-2 border-zinc-700" />
-                )}
-                <div>
-                    <p className="font-medium text-white">{task.description || `Task #${taskId + 1}`}</p>
-                    <p className="text-xs text-zinc-500">
-                        {task.isVerified ? "Verified ✓" : task.isCompleted ? "Awaiting verification" : "Not completed"}
-                    </p>
-                    <p className="text-[10px] text-zinc-600 mt-1">Votes: {task.voteCount?.toString()} </p>
+        <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-4">
+            <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-3">
+                    {task.isVerified ? (
+                        <CheckCircle className="h-5 w-5 text-green-500" />
+                    ) : task.isCompleted ? (
+                        <Clock className="h-5 w-5 text-yellow-500" />
+                    ) : (
+                        <div className="h-5 w-5 rounded-full border-2 border-zinc-700" />
+                    )}
+                    <div>
+                        <p className="font-medium text-white">{task.description || `Task #${taskId + 1}`}</p>
+                        <p className="text-xs text-zinc-500">
+                            {task.isVerified ? "Verified ✓" : task.isCompleted ? "Awaiting verification" : "Not completed"}
+                        </p>
+                        <p className="text-[10px] text-zinc-600 mt-1">Votes: {task.voteCount?.toString()}</p>
+                        {task.proof && (
+                            <a href={task.proof} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-[10px] text-primary hover:underline mt-1">
+                                <LinkIcon className="h-3 w-3" /> View Proof
+                            </a>
+                        )}
+                    </div>
                 </div>
+                {!task.isCompleted && !task.isVerified && (
+                    <button
+                        onClick={() => setIsExpanded(!isExpanded)}
+                        className="rounded-lg bg-zinc-800 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700"
+                    >
+                        {isExpanded ? "Cancel" : "Complete"}
+                    </button>
+                )}
             </div>
-            {!task.isCompleted && !task.isVerified && (
-                <button
-                    onClick={onComplete}
-                    disabled={isCompletingTask}
-                    className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-all hover:bg-yellow-400 disabled:opacity-50"
-                >
-                    {isCompletingTask ? "Completing..." : "Mark Complete"}
-                </button>
+
+            {!task.isCompleted && isExpanded && (
+                <div className="mt-4 pt-4 border-t border-zinc-800">
+                    <label className="block text-xs text-zinc-400 mb-2">Proof of Task (URL, Tweet, Image Link)</label>
+                    <div className="flex gap-2">
+                        <input
+                            type="text"
+                            placeholder="https://..."
+                            value={proof}
+                            onChange={(e) => setProof(e.target.value)}
+                            className="flex-1 rounded bg-zinc-900 border border-zinc-700 px-3 py-2 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-primary"
+                        />
+                        <button
+                            onClick={() => onComplete(proof)}
+                            disabled={isCompletingTask || !proof}
+                            className="rounded bg-primary px-4 py-2 text-sm font-bold text-primary-foreground hover:bg-yellow-400 disabled:opacity-50"
+                        >
+                            {isCompletingTask ? <Loader2 className="h-4 w-4 animate-spin" /> : "Submit"}
+                        </button>
+                    </div>
+                </div>
             )}
         </div>
     );
@@ -539,7 +603,7 @@ function MemberTaskItem({ vaultId, memberAddress, taskId, canVerify, onVerify, i
     if (isLoading || !task) return null;
 
     const voteCount = task.voteCount ? Number(task.voteCount) : 0;
-    const requiredVotes = memberCount;
+    const requiredVotes = Math.floor(memberCount / 2) + 1; // Majority > 50%
 
     return (
         <div className="flex items-center justify-between text-sm">
@@ -553,9 +617,16 @@ function MemberTaskItem({ vaultId, memberAddress, taskId, canVerify, onVerify, i
                 )}
                 <div>
                     <span className="text-zinc-300 block">{task.description || `Task #${taskId + 1}`}</span>
-                    <span className="text-[10px] text-zinc-500">
-                        {task.isVerified ? "Verified" : `Votes: ${voteCount}/${requiredVotes}`}
-                    </span>
+                    <div className="flex flex-col gap-1">
+                        <span className="text-[10px] text-zinc-500">
+                            {task.isVerified ? "Verified" : `Votes: ${voteCount}/${requiredVotes}`}
+                        </span>
+                        {task.proof && (
+                            <a href={task.proof} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-[10px] text-primary hover:underline">
+                                <LinkIcon className="h-3 w-3" /> Proof
+                            </a>
+                        )}
+                    </div>
                 </div>
             </div>
 
